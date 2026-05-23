@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Happy Browser",
   "description": "Adds blind previous and next navigation to pages with arrows, gestures, and large page controls.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -32,9 +32,6 @@
       "run_at": "document_idle"
     }
   ],
-  "options_ui": {
-    "page": "src/options.html"
-  },
   "commands": {
     "toggle-happy": {
       "suggested_key": {
@@ -47,5 +44,8 @@
   "action": {
     "default_title": "Happy Browser",
     "default_popup": "src/options.html"
+  },
+  "options_ui": {
+    "page": "src/options.html"
   }
 }

@@ -2,19 +2,35 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
-const safariRoot = path.join(root, "safari-extension");
 const sourceDir = path.join(root, "src");
-const targetDir = path.join(safariRoot, "src");
-
-fs.rmSync(targetDir, { recursive: true, force: true });
-fs.mkdirSync(targetDir, { recursive: true });
-
-for (const entry of fs.readdirSync(sourceDir)) {
-  const source = path.join(sourceDir, entry);
-  const target = path.join(targetDir, entry);
-  if (fs.statSync(source).isFile()) {
-    fs.copyFileSync(source, target);
+const sourceManifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "utf8"));
+const targets = [
+  {
+    label: "Safari extension staging",
+    srcDir: path.join(root, "safari-extension", "src"),
+    manifest: path.join(root, "safari-extension", "manifest.json")
+  },
+  {
+    label: "Safari Xcode resources",
+    srcDir: path.join(root, "safari", "Happy Browser", "Happy Browser Extension", "Resources", "src"),
+    manifest: path.join(root, "safari", "Happy Browser", "Happy Browser Extension", "Resources", "manifest.json")
   }
-}
+];
 
-console.log(`Synced Safari extension resources to ${path.relative(root, targetDir)}`);
+for (const target of targets) {
+  fs.rmSync(target.srcDir, { recursive: true, force: true });
+  fs.mkdirSync(target.srcDir, { recursive: true });
+
+  for (const entry of fs.readdirSync(sourceDir)) {
+    const source = path.join(sourceDir, entry);
+    const destination = path.join(target.srcDir, entry);
+    if (fs.statSync(source).isFile()) {
+      fs.copyFileSync(source, destination);
+    }
+  }
+
+  const targetManifest = JSON.parse(fs.readFileSync(target.manifest, "utf8"));
+  targetManifest.version = sourceManifest.version;
+  fs.writeFileSync(target.manifest, `${JSON.stringify(targetManifest, null, 2)}\n`);
+  console.log(`Synced ${target.label} to ${path.relative(root, target.srcDir)}`);
+}

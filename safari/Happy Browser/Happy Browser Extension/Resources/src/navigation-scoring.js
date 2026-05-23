@@ -240,6 +240,11 @@
       scoreParts.push("unrelated-control-region");
     }
 
+    if (isDirectionalContentLink(seed.source, href, normalizedText, contextText, scoreParts)) {
+      score -= 68;
+      scoreParts.push("directional-content-link");
+    }
+
     if (isInsideDocumentTail(element) && !isPaginationOrLoadMore(normalizedText, contextText)) {
       score -= 80;
       scoreParts.push("document-tail-region");
@@ -525,6 +530,32 @@
   function isPaginationOrLoadMore(text, context) {
     const combined = `${text} ${context}`;
     return /pagination|pager|page-next|page-prev|page-previous|\bmehr\s+laden\b|\bload\s+more\b|\bshow\s+more\b/.test(combined);
+  }
+
+  function isDirectionalContentLink(source, href, text, context, scoreParts) {
+    if (source === "rel" || !href) {
+      return false;
+    }
+
+    const hasDirectionalText = scoreParts.some((reason) => reason.startsWith("text:") || reason.startsWith("opposite-text:"));
+    if (!hasDirectionalText) {
+      return false;
+    }
+
+    if (isPaginationOrLoadMore(text, context)) {
+      return false;
+    }
+
+    const hasNavigationContext = scoreParts.some((reason) =>
+      reason === "navigation-region" ||
+      reason.startsWith("context:") ||
+      reason.includes("page-next") ||
+      reason.includes("page-previous") ||
+      reason.includes("url-page-direction") ||
+      reason.includes("pagination-number-direction")
+    );
+
+    return !hasNavigationContext;
   }
 
   function isInsideDocumentTail(element) {

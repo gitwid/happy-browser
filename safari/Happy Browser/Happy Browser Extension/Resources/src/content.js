@@ -26,7 +26,8 @@
     toggleY: null,
     statusTimer: null,
     observerTimer: null,
-    preNavigationSnapshot: null
+    preNavigationSnapshot: null,
+    versionLabel: getExtensionVersionLabel()
   };
 
   const railCss = `
@@ -110,6 +111,23 @@
     .happy-browser-toggle:focus-visible {
       opacity: 0.94;
       outline: none;
+    }
+
+    .happy-browser-version {
+      position: fixed;
+      top: calc(var(--happy-toggle-top, 16px) + 42px);
+      right: var(--happy-toggle-right, 16px);
+      width: 58px;
+      color: rgba(248, 251, 255, 0.64);
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: 0;
+      line-height: 1;
+      text-align: center;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.62);
+      opacity: 0.56;
+      pointer-events: none;
+      user-select: none;
     }
 
     #happy-browser-rail[data-happy-enabled="true"] .happy-browser-toggle {
@@ -261,11 +279,15 @@
     const previous = makeRailButton("previous", "‹", "Happy previous");
     const next = makeRailButton("next", "›", "Happy next");
     const toggle = makeToggleButton();
+    const version = document.createElement("div");
+    version.className = "happy-browser-version";
+    version.textContent = state.versionLabel;
+    version.setAttribute("aria-hidden", "true");
     const status = document.createElement("div");
     status.className = "happy-browser-status";
     status.textContent = "Scanning";
 
-    rail.append(previous, next, toggle, status);
+    rail.append(previous, next, toggle, version, status);
     shadow.append(style, rail);
     document.documentElement.appendChild(host);
     state.railHost = host;
@@ -293,6 +315,18 @@
       toggleHappyEnabled();
     });
     return button;
+  }
+
+  function getExtensionVersionLabel() {
+    try {
+      const manifest = chrome.runtime && chrome.runtime.getManifest ? chrome.runtime.getManifest() : null;
+      if (manifest && manifest.version) {
+        return `v${manifest.version}`;
+      }
+    } catch (error) {
+      // Safari can be conservative about extension APIs during early injection.
+    }
+    return "v0.1.1";
   }
 
   function makeRailButton(direction, text, label) {
