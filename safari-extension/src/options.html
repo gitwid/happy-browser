@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Happy Browser Options</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main class="options">
+      <h1>Happy Browser</h1>
+      <label class="toggle">
+        <input id="happyEnabled" type="checkbox">
+        <span>Happy navigation on</span>
+      </label>
+      <label class="toggle">
+        <input id="railEnabled" type="checkbox">
+        <span>Show floating navigation rail</span>
+      </label>
+      <label class="toggle">
+        <input id="debug" type="checkbox">
+        <span>Log navigation scoring in DevTools</span>
+      </label>
+      <p id="status" role="status"></p>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

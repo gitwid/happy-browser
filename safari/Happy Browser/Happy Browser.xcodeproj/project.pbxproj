@@ -1,0 +1,605 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		567F02F32FC169B300EB2BCD /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567F02F22FC169B300EB2BCD /* AppDelegate.swift */; };
+		567F02F72FC169B300EB2BCD /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = 567F02F52FC169B300EB2BCD /* Main.html */; };
+		567F02F92FC169B300EB2BCD /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 567F02F82FC169B300EB2BCD /* Icon.png */; };
+		567F02FB2FC169B300EB2BCD /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = 567F02FA2FC169B300EB2BCD /* Style.css */; };
+		567F02FD2FC169B300EB2BCD /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = 567F02FC2FC169B300EB2BCD /* Script.js */; };
+		567F02FF2FC169B300EB2BCD /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567F02FE2FC169B300EB2BCD /* ViewController.swift */; };
+		567F03022FC169B300EB2BCD /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 567F03002FC169B300EB2BCD /* Main.storyboard */; };
+		567F03042FC169B500EB2BCD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 567F03032FC169B500EB2BCD /* Assets.xcassets */; };
+		567F030B2FC169B500EB2BCD /* Happy Browser Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 567F030A2FC169B500EB2BCD /* Happy Browser Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		567F03102FC169B500EB2BCD /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567F030F2FC169B500EB2BCD /* SafariWebExtensionHandler.swift */; };
+		567F031F2FC169B900EB2BCD /* icons in Resources */ = {isa = PBXBuildFile; fileRef = 567F031C2FC169B900EB2BCD /* icons */; };
+		567F03202FC169B900EB2BCD /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 567F031D2FC169B900EB2BCD /* manifest.json */; };
+		567F03212FC169B900EB2BCD /* src in Resources */ = {isa = PBXBuildFile; fileRef = 567F031E2FC169B900EB2BCD /* src */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		567F030C2FC169B500EB2BCD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 567F02E72FC169B300EB2BCD /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 567F03092FC169B500EB2BCD;
+			remoteInfo = "Happy Browser Extension";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		567F03172FC169B500EB2BCD /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				567F030B2FC169B500EB2BCD /* Happy Browser Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		567F02EF2FC169B300EB2BCD /* Happy Browser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Happy Browser.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		567F02F22FC169B300EB2BCD /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		567F02F62FC169B300EB2BCD /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = Base; path = Base.lproj/Main.html; sourceTree = "<group>"; };
+		567F02F82FC169B300EB2BCD /* Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Icon.png; sourceTree = "<group>"; };
+		567F02FA2FC169B300EB2BCD /* Style.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = Style.css; sourceTree = "<group>"; };
+		567F02FC2FC169B300EB2BCD /* Script.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Script.js; sourceTree = "<group>"; };
+		567F02FE2FC169B300EB2BCD /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		567F03012FC169B300EB2BCD /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		567F03032FC169B500EB2BCD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		567F03052FC169B500EB2BCD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		567F030A2FC169B500EB2BCD /* Happy Browser Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Happy Browser Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		567F030F2FC169B500EB2BCD /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		567F03112FC169B500EB2BCD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		567F031C2FC169B900EB2BCD /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = Resources/icons; sourceTree = "<group>"; };
+		567F031D2FC169B900EB2BCD /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = Resources/manifest.json; sourceTree = "<group>"; };
+		567F031E2FC169B900EB2BCD /* src */ = {isa = PBXFileReference; lastKnownFileType = folder; name = src; path = Resources/src; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		567F02EC2FC169B300EB2BCD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		567F03072FC169B500EB2BCD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		567F02E62FC169B300EB2BCD = {
+			isa = PBXGroup;
+			children = (
+				567F02F12FC169B300EB2BCD /* Happy Browser */,
+				567F030E2FC169B500EB2BCD /* Happy Browser Extension */,
+				567F02F02FC169B300EB2BCD /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		567F02F02FC169B300EB2BCD /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				567F02EF2FC169B300EB2BCD /* Happy Browser.app */,
+				567F030A2FC169B500EB2BCD /* Happy Browser Extension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		567F02F12FC169B300EB2BCD /* Happy Browser */ = {
+			isa = PBXGroup;
+			children = (
+				567F02F22FC169B300EB2BCD /* AppDelegate.swift */,
+				567F02FE2FC169B300EB2BCD /* ViewController.swift */,
+				567F03002FC169B300EB2BCD /* Main.storyboard */,
+				567F03032FC169B500EB2BCD /* Assets.xcassets */,
+				567F03052FC169B500EB2BCD /* Info.plist */,
+				567F02F42FC169B300EB2BCD /* Resources */,
+			);
+			path = "Happy Browser";
+			sourceTree = "<group>";
+		};
+		567F02F42FC169B300EB2BCD /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				567F02F52FC169B300EB2BCD /* Main.html */,
+				567F02F82FC169B300EB2BCD /* Icon.png */,
+				567F02FA2FC169B300EB2BCD /* Style.css */,
+				567F02FC2FC169B300EB2BCD /* Script.js */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		567F030E2FC169B500EB2BCD /* Happy Browser Extension */ = {
+			isa = PBXGroup;
+			children = (
+				567F031B2FC169B900EB2BCD /* Resources */,
+				567F030F2FC169B500EB2BCD /* SafariWebExtensionHandler.swift */,
+				567F03112FC169B500EB2BCD /* Info.plist */,
+			);
+			path = "Happy Browser Extension";
+			sourceTree = "<group>";
+		};
+		567F031B2FC169B900EB2BCD /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				567F031C2FC169B900EB2BCD /* icons */,
+				567F031D2FC169B900EB2BCD /* manifest.json */,
+				567F031E2FC169B900EB2BCD /* src */,
+			);
+			name = Resources;
+			path = "Happy Browser Extension";
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		567F02EE2FC169B300EB2BCD /* Happy Browser */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 567F03182FC169B500EB2BCD /* Build configuration list for PBXNativeTarget "Happy Browser" */;
+			buildPhases = (
+				567F02EB2FC169B300EB2BCD /* Sources */,
+				567F02EC2FC169B300EB2BCD /* Frameworks */,
+				567F02ED2FC169B300EB2BCD /* Resources */,
+				567F03172FC169B500EB2BCD /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				567F030D2FC169B500EB2BCD /* PBXTargetDependency */,
+			);
+			name = "Happy Browser";
+			packageProductDependencies = (
+			);
+			productName = "Happy Browser";
+			productReference = 567F02EF2FC169B300EB2BCD /* Happy Browser.app */;
+			productType = "com.apple.product-type.application";
+		};
+		567F03092FC169B500EB2BCD /* Happy Browser Extension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 567F03142FC169B500EB2BCD /* Build configuration list for PBXNativeTarget "Happy Browser Extension" */;
+			buildPhases = (
+				567F03062FC169B500EB2BCD /* Sources */,
+				567F03072FC169B500EB2BCD /* Frameworks */,
+				567F03082FC169B500EB2BCD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Happy Browser Extension";
+			packageProductDependencies = (
+			);
+			productName = "Happy Browser Extension";
+			productReference = 567F030A2FC169B500EB2BCD /* Happy Browser Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		567F02E72FC169B300EB2BCD /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2650;
+				LastUpgradeCheck = 2650;
+				TargetAttributes = {
+					567F02EE2FC169B300EB2BCD = {
+						CreatedOnToolsVersion = 26.5;
+					};
+					567F03092FC169B500EB2BCD = {
+						CreatedOnToolsVersion = 26.5;
+					};
+				};
+			};
+			buildConfigurationList = 567F02EA2FC169B300EB2BCD /* Build configuration list for PBXProject "Happy Browser" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 567F02E62FC169B300EB2BCD;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 567F02F02FC169B300EB2BCD /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				567F02EE2FC169B300EB2BCD /* Happy Browser */,
+				567F03092FC169B500EB2BCD /* Happy Browser Extension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		567F02ED2FC169B300EB2BCD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				567F02F92FC169B300EB2BCD /* Icon.png in Resources */,
+				567F03022FC169B300EB2BCD /* Main.storyboard in Resources */,
+				567F02FD2FC169B300EB2BCD /* Script.js in Resources */,
+				567F02F72FC169B300EB2BCD /* Main.html in Resources */,
+				567F03042FC169B500EB2BCD /* Assets.xcassets in Resources */,
+				567F02FB2FC169B300EB2BCD /* Style.css in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		567F03082FC169B500EB2BCD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				567F03212FC169B900EB2BCD /* src in Resources */,
+				567F03202FC169B900EB2BCD /* manifest.json in Resources */,
+				567F031F2FC169B900EB2BCD /* icons in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		567F02EB2FC169B300EB2BCD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				567F02FF2FC169B300EB2BCD /* ViewController.swift in Sources */,
+				567F02F32FC169B300EB2BCD /* AppDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		567F03062FC169B500EB2BCD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				567F03102FC169B500EB2BCD /* SafariWebExtensionHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		567F030D2FC169B500EB2BCD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 567F03092FC169B500EB2BCD /* Happy Browser Extension */;
+			targetProxy = 567F030C2FC169B500EB2BCD /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		567F02F52FC169B300EB2BCD /* Main.html */ = {
+			isa = PBXVariantGroup;
+			children = (
+				567F02F62FC169B300EB2BCD /* Base */,
+			);
+			name = Main.html;
+			sourceTree = "<group>";
+		};
+		567F03002FC169B300EB2BCD /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				567F03012FC169B300EB2BCD /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		567F03122FC169B500EB2BCD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.5;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		567F03132FC169B500EB2BCD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.5;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		567F03152FC169B500EB2BCD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Happy Browser Extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Happy Browser Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.happybrowser.Happy-Browser.Extension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		567F03162FC169B500EB2BCD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Happy Browser Extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Happy Browser Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.happybrowser.Happy-Browser.Extension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		567F03192FC169B500EB2BCD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Happy Browser/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Happy Browser";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.happybrowser.Happy-Browser";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		567F031A2FC169B500EB2BCD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Happy Browser/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Happy Browser";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.happybrowser.Happy-Browser";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		567F02EA2FC169B300EB2BCD /* Build configuration list for PBXProject "Happy Browser" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				567F03122FC169B500EB2BCD /* Debug */,
+				567F03132FC169B500EB2BCD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		567F03142FC169B500EB2BCD /* Build configuration list for PBXNativeTarget "Happy Browser Extension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				567F03152FC169B500EB2BCD /* Debug */,
+				567F03162FC169B500EB2BCD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		567F03182FC169B500EB2BCD /* Build configuration list for PBXNativeTarget "Happy Browser" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				567F03192FC169B500EB2BCD /* Debug */,
+				567F031A2FC169B500EB2BCD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 567F02E72FC169B300EB2BCD /* Project object */;
+}

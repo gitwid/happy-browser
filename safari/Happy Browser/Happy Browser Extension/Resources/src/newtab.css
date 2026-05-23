@@ -1,0 +1,107 @@
+:root {
+  color-scheme: light dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f4f7f4;
+  color: #18211d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    linear-gradient(135deg, rgba(225, 242, 235, 0.86), rgba(244, 247, 244, 0.94)),
+    #f4f7f4;
+}
+
+.newtab-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 28px;
+}
+
+.search {
+  width: min(720px, 100%);
+}
+
+.brand {
+  display: block;
+  margin: 0 0 14px;
+  color: #335046;
+  font-size: 20px;
+  font-weight: 720;
+}
+
+.search-row {
+  display: grid;
+  grid-template-columns: 1fr 56px;
+  gap: 10px;
+}
+
+input,
+button {
+  height: 56px;
+  border: 1px solid rgba(42, 68, 59, 0.22);
+  border-radius: 8px;
+  font: inherit;
+}
+
+input {
+  min-width: 0;
+  padding: 0 18px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #18211d;
+  font-size: 18px;
+  outline: none;
+}
+
+input:focus {
+  border-color: #2f7a5b;
+  box-shadow: 0 0 0 3px rgba(47, 122, 91, 0.14);
+}
+
+button {
+  background: #214c3c;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 24px;
+}
+
+button:hover,
+button:focus-visible {
+  background: #17382d;
+  outline: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    background: #111816;
+    color: #eff8f3;
+  }
+
+  body {
+    background:
+      linear-gradient(135deg, rgba(33, 48, 43, 0.92), rgba(17, 24, 22, 0.96)),
+      #111816;
+  }
+
+  .brand {
+    color: #c8e8d9;
+  }
+
+  input {
+    background: rgba(10, 14, 13, 0.82);
+    color: #eff8f3;
+    border-color: rgba(204, 232, 217, 0.2);
+  }
+
+  button {
+    background: #66c79a;
+    color: #092018;
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "happy-browser",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome extension for blind previous and next page navigation.",
+  "scripts": {
+    "icons": "node scripts/create-icons.js",
+    "package:chrome": "node scripts/package-chrome.js",
+    "safari:sync": "node scripts/sync-safari-extension.js",
+    "test": "node tests/navigation-scoring.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
+  }
+}
