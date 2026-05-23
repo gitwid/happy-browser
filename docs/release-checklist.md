@@ -28,6 +28,7 @@
 
 - [ ] Confirm Apple Developer Program membership.
 - [ ] Set production bundle identifiers for the containing app and extension.
+- [ ] Follow `docs/testflight.md` for TestFlight preparation.
 - [ ] Configure signing team and capabilities in Xcode.
 - [ ] Replace development copy and screenshots with App Store-ready copy.
 - [ ] Archive the macOS containing app in Xcode.
