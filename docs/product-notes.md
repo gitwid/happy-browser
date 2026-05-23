@@ -18,6 +18,7 @@
 - Shift-click pass-through works, but the rail does not yet become transparent on Shift-hover. This makes the target under the rail hard to inspect before click-through.
 - `https://flowzz.com/rhein-apotheke-im-rztehaus-mhlburg` once scrolled to the bottom after load; mitigated with a startup gesture grace period, but keep an eye on it.
 - `https://flowzz.com/seo-gruene-wirkstoffe` scrolled several page lengths unrequested; watch for startup or trackpad gesture false positives.
+- `https://tvtropes.org/pmwiki/pmwiki.php/Main/LongList` is a good ambiguous-page testbed: ordinary article links can contain words like "Next" or "Previous" without being page-level navigation. Happy should avoid claiming confidence there unless a real navigation structure is found.
 
 ## Future Ideas
 

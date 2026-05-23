@@ -270,3 +270,38 @@ run("ignores disabled load more controls", () => {
 
   assert.equal(result.directions.next.confidence, "none");
 });
+
+run("does not treat ordinary content links named next as page navigation", () => {
+  const document = makeDocument(`
+    <main class="article">
+      <h1>Long List</h1>
+      <p>
+        Some pages have content links whose names include directional words.
+        <a href="/pmwiki/pmwiki.php/Main/NextSundayAD">Next Sunday A.D.</a>
+        <a href="/pmwiki/pmwiki.php/Main/PreviousTropes">Previous Tropes</a>
+      </p>
+    </main>
+  `, "https://tvtropes.org/pmwiki/pmwiki.php/Main/LongList");
+  const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
+
+  assert.equal(result.state, "none");
+  assert.equal(result.directions.next.confidence, "none");
+  assert.equal(result.directions.previous.confidence, "none");
+});
+
+run("still accepts next links inside navigation regions", () => {
+  const document = makeDocument(`
+    <main>
+      <article>Gallery item</article>
+      <nav class="pager">
+        <a href="/gallery/page/1/">Previous</a>
+        <a href="/gallery/page/3/">Next</a>
+      </nav>
+    </main>
+  `);
+  const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
+
+  assert.equal(result.state, "happy");
+  assert.equal(result.directions.next.best.href, "https://example.com/gallery/page/3/");
+  assert.equal(result.directions.previous.best.href, "https://example.com/gallery/page/1/");
+});
