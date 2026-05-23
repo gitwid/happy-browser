@@ -289,6 +289,32 @@ run("does not treat ordinary content links named next as page navigation", () =>
   assert.equal(result.directions.previous.confidence, "none");
 });
 
+run("ignores TV Tropes utility chrome on article pages", () => {
+  const document = makeDocument(`
+    <header class="top-navbar">
+      <a href="/pmwiki/pmwiki.php/Main/Tropes">Tropes</a>
+      <a href="/pmwiki/pmwiki.php/Main/LongList?action=source">More Page Source</a>
+      <a href="/pmwiki/pmwiki.php/Main/LongList?action=edit">Edit Page</a>
+      <a href="/login.php">Login</a>
+      <a class="social-facebook" href="https://www.facebook.com/tvtropes" aria-label="Follow TV Tropes on Facebook">f</a>
+    </header>
+    <main class="article">
+      <h1>Long List</h1>
+      <p>A comedy trope where a person rattles off an absurdly long list of things.</p>
+    </main>
+    <aside class="sidebar">
+      <a href="/pmwiki/pmwiki.php/Main/Browse">Browse</a>
+      <a href="/pmwiki/pmwiki.php/Main/GoAdFree">Go Ad Free!</a>
+      <a href="/pmwiki/pmwiki.php/Main/ImportantLinks">More</a>
+    </aside>
+  `, "https://tvtropes.org/pmwiki/pmwiki.php/Main/LongList");
+  const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
+
+  assert.equal(result.state, "none");
+  assert.equal(result.directions.next.confidence, "none");
+  assert.equal(result.directions.previous.confidence, "none");
+});
+
 run("still accepts next links inside navigation regions", () => {
   const document = makeDocument(`
     <main>

@@ -326,7 +326,7 @@
     } catch (error) {
       // Safari can be conservative about extension APIs during early injection.
     }
-    return "v0.1.1";
+    return "v0.1.2";
   }
 
   function makeRailButton(direction, text, label) {

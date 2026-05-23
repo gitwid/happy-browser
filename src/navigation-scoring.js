@@ -6,8 +6,6 @@
   const POSITIVE_TEXT = {
     next: [
       "next",
-      "more",
-      "mehr",
       "mehr laden",
       "laden",
       "load more",
@@ -82,7 +80,21 @@
     "alle produkte",
     "mehr ratgeber",
     "ratgeber",
-    "weiterlesen"
+    "weiterlesen",
+    "edit page",
+    "page source",
+    "related",
+    "history",
+    "discussion",
+    "to do",
+    "follow",
+    "facebook",
+    "twitter",
+    "join",
+    "go ad free",
+    "random trope",
+    "random media",
+    "search"
   ];
 
   const STRUCTURE_HINTS = [
@@ -238,6 +250,11 @@
     if (isInsideUnrelatedControl(element)) {
       score -= 45;
       scoreParts.push("unrelated-control-region");
+    }
+
+    if (isUtilityChromeControl(element, normalizedText, contextText)) {
+      score -= 120;
+      scoreParts.push("utility-chrome-control");
     }
 
     if (isDirectionalContentLink(seed.source, href, normalizedText, contextText, scoreParts)) {
@@ -532,6 +549,20 @@
     return /pagination|pager|page-next|page-prev|page-previous|\bmehr\s+laden\b|\bload\s+more\b|\bshow\s+more\b/.test(combined);
   }
 
+  function isUtilityChromeControl(element, text, context) {
+    if (!element.closest || isPaginationOrLoadMore(text, context)) {
+      return false;
+    }
+
+    const combined = `${text} ${context}`;
+    const hasUtilityText = /\b(login|sign in|join|edit page|page source|related|history|discussion|to do|follow|facebook|twitter|share|social|random trope|random media|go ad free|search|account|profile)\b|\bmore\b/.test(combined);
+    if (!hasUtilityText) {
+      return false;
+    }
+
+    return Boolean(element.closest("header, [role='banner'], aside, [role='complementary'], [role='menu'], [role='menubar'], [class*='top'], [class*='navbar'], [class*='nav-bar'], [class*='menu'], [class*='toolbar'], [class*='social'], [id*='social'], [class*='account'], [id*='account'], [class*='sidebar'], [id*='sidebar']"));
+  }
+
   function isDirectionalContentLink(source, href, text, context, scoreParts) {
     if (source === "rel" || !href) {
       return false;
@@ -730,7 +761,7 @@
   }
 
   function isInsideUnrelatedControl(element) {
-    return Boolean(element.closest && element.closest("form, [role='menu'], [role='menubar'], [role='tablist'], aside, .ad, .ads, [class*='advert'], [id*='advert'], [class*='filter'], [id*='filter'], [class*='sort'], [id*='sort']"));
+    return Boolean(element.closest && element.closest("form, [role='menu'], [role='menubar'], [role='tablist'], aside, [role='complementary'], .ad, .ads, [class*='advert'], [id*='advert'], [class*='filter'], [id*='filter'], [class*='sort'], [id*='sort']"));
   }
 
   function classifyConfidence(score) {
