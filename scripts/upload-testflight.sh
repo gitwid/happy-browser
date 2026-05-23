@@ -11,6 +11,11 @@ EXPORT_OPTIONS="$ROOT/safari/ExportOptions-TestFlight.plist"
 echo "Syncing Safari extension assets..."
 npm run safari:sync
 
+if [ ! -d "$ROOT/node_modules/jsdom" ]; then
+  echo "Installing npm dependencies..."
+  npm ci
+fi
+
 echo "Running navigation scorer tests..."
 npm test
 

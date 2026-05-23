@@ -49,7 +49,7 @@ Equivalent npm shortcut:
 npm run testflight:upload
 ```
 
-The script syncs the Safari extension assets, runs the scoring tests, archives the macOS app with automatic signing, and uploads the archive to App Store Connect for TestFlight processing.
+The script syncs the Safari extension assets, installs npm dependencies if needed, runs the scoring tests, archives the macOS app with automatic signing, and uploads the archive to App Store Connect for TestFlight processing.
 
 Manual Xcode fallback:
 
