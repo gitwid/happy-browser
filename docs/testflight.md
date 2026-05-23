@@ -74,6 +74,12 @@ Permission explanation:
 
 Happy Browser needs access to normal web pages so it can inspect visible page controls and find previous, next, and load-more navigation targets. This analysis runs locally in the browser and is used only to provide navigation controls shown to the user.
 
+Compliance notes:
+
+- See `docs/app-store-compliance.md`.
+- Current build sets `ITSAppUsesNonExemptEncryption = NO`.
+- If Happy Browser adds API calls, sync, analytics, AI services, accounts, telemetry, or custom cryptography, revisit export compliance and privacy answers before uploading another build.
+
 ## First TestFlight Goal
 
 The first TestFlight build should prove:
