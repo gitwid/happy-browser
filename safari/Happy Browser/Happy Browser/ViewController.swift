@@ -9,11 +9,17 @@ import Cocoa
 import SafariServices
 import WebKit
 
-let extensionBundleIdentifier = "com.happybrowser.extension.Extension"
-
 class ViewController: NSViewController, WKNavigationDelegate, WKScriptMessageHandler {
 
     @IBOutlet var webView: WKWebView!
+
+    private var extensionBundleIdentifier: String {
+        guard let bundleIdentifier = Bundle.main.bundleIdentifier else {
+            return "com.gitwid.happybrowser.Extension"
+        }
+
+        return "\(bundleIdentifier).Extension"
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -22,7 +28,12 @@ class ViewController: NSViewController, WKNavigationDelegate, WKScriptMessageHan
 
         self.webView.configuration.userContentController.add(self, name: "controller")
 
-        self.webView.loadFileURL(Bundle.main.url(forResource: "Main", withExtension: "html")!, allowingReadAccessTo: Bundle.main.resourceURL!)
+        guard let mainHTMLURL = Bundle.main.url(forResource: "Main", withExtension: "html"),
+              let resourceURL = Bundle.main.resourceURL else {
+            return
+        }
+
+        self.webView.loadFileURL(mainHTMLURL, allowingReadAccessTo: resourceURL)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -43,8 +54,8 @@ class ViewController: NSViewController, WKNavigationDelegate, WKScriptMessageHan
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        if (message.body as! String != "open-preferences") {
-            return;
+        guard message.body as? String == "open-preferences" else {
+            return
         }
 
         SFSafariApplication.showPreferencesForExtension(withIdentifier: extensionBundleIdentifier) { error in
