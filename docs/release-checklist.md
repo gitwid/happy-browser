@@ -4,6 +4,8 @@
 
 - [ ] Confirm `.gitignore` excludes local state, build products, and Xcode user data.
 - [ ] Decide whether `docs/product-notes.md` should remain in the public repository.
+- [ ] Confirm README states that the repository contains both Chrome and Safari extension targets.
+- [ ] Confirm `LICENSE.md` and `CONTRIBUTING.md` reflect source-available tryware and contribution terms.
 - [ ] Run `npm test`.
 - [ ] Run `npm run package:chrome`.
 - [ ] Build the Safari containing app in Xcode.

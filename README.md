@@ -6,8 +6,12 @@ The goal is simple: when a page has a next page, previous page, gallery step, ca
 
 ## Current Platforms
 
-- Chrome Manifest V3 extension
-- Safari Web Extension packaged in a macOS containing app
+This repository contains both current Happy Browser extension targets:
+
+- Chrome Manifest V3 extension, rooted at `manifest.json`, `src/`, and `icons/`.
+- Safari Web Extension, with shared extension resources in `safari-extension/` and the packaged macOS containing app in `safari/Happy Browser`.
+
+Planned distribution channels include browser extension stores, app stores, and direct distribution where appropriate, including the Chrome Web Store, Apple App Store / Mac App Store, Microsoft Store, and direct downloads.
 
 ## Features
 
@@ -69,3 +73,9 @@ For unsigned development builds, Safari's unsigned extension support must be ena
 ## Release Notes
 
 Release planning lives in [docs/release-checklist.md](docs/release-checklist.md).
+
+## License
+
+Happy Browser is source-available tryware. You may inspect, run, and modify the project for evaluation and personal testing, but commercial use, redistribution, store publication, and public distribution require permission from the project maintainers. See [LICENSE.md](LICENSE.md).
+
+Contributions are welcome under the terms in [CONTRIBUTING.md](CONTRIBUTING.md). Direct contributions will be attributed where practical, and contributors grant the project the rights needed to include those contributions in official Happy Browser builds and distribution efforts.
