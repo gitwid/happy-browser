@@ -37,7 +37,21 @@ The containing app does not request outgoing network sandbox access. The extensi
 
 ## Archive For TestFlight
 
-In Xcode:
+Preferred command-line flow:
+
+```sh
+./scripts/upload-testflight.sh
+```
+
+Equivalent npm shortcut:
+
+```sh
+npm run testflight:upload
+```
+
+The script syncs the Safari extension assets, runs the scoring tests, archives the macOS app with automatic signing, and uploads the archive to App Store Connect for TestFlight processing.
+
+Manual Xcode fallback:
 
 1. Open `safari/Happy Browser/Happy Browser.xcodeproj`.
 2. Select the `Happy Browser` scheme.
@@ -58,7 +72,7 @@ npm run safari:sync
 xcodebuild -project "safari/Happy Browser/Happy Browser.xcodeproj" -scheme "Happy Browser" -configuration Release -derivedDataPath safari/DerivedData CODE_SIGNING_ALLOWED=NO build
 ```
 
-The command-line build disables signing so it only verifies that the project compiles. App Store upload still requires proper Apple signing in Xcode.
+The command-line build disables signing so it only verifies that the project compiles. TestFlight uploads require Apple signing. `scripts/upload-testflight.sh` uses automatic signing with the configured team and may need the Apple Developer account to be available in Xcode or through App Store Connect API credentials.
 
 ## App Store Connect Metadata
 

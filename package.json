@@ -7,7 +7,8 @@
     "icons": "node scripts/create-icons.js",
     "package:chrome": "node scripts/package-chrome.js",
     "safari:sync": "node scripts/sync-safari-extension.js",
-    "test": "node tests/navigation-scoring.test.js"
+    "test": "node tests/navigation-scoring.test.js",
+    "testflight:upload": "./scripts/upload-testflight.sh"
   },
   "devDependencies": {
     "jsdom": "^24.1.3"
