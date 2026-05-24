@@ -56,7 +56,7 @@ run("treats javascript-only carousel controls as tentative", () => {
       <button aria-label="Previous image">‹</button>
       <button aria-label="Next image">›</button>
     </section>
-  `, "https://shop.example.com/item/abc");
+  `, "https://carousel.example.test/item/abc");
   const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
 
   assert.equal(result.state, "tentative");
@@ -102,17 +102,17 @@ run("promotes query pagination when total page text is visible", () => {
         <span>2 von 25</span>
       </nav>
     </main>
-  `, "https://www.gruenhorn.de/live-bestand/?order=live-bestand-bluten&p=2");
+  `, "https://catalog.example.test/listings/?order=inventory&p=2");
   const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
 
   assert.equal(result.state, "happy");
   assert.equal(result.directions.next.confidence, "strong");
   assert.equal(result.directions.next.best.type, "url");
-  assert.equal(result.directions.next.best.href, "https://www.gruenhorn.de/live-bestand/?order=live-bestand-bluten&p=3");
-  assert.equal(result.directions.previous.best.href, "https://www.gruenhorn.de/live-bestand/?order=live-bestand-bluten&p=1");
+  assert.equal(result.directions.next.best.href, "https://catalog.example.test/listings/?order=inventory&p=3");
+  assert.equal(result.directions.previous.best.href, "https://catalog.example.test/listings/?order=inventory&p=1");
 });
 
-run("detects Shopware label-based icon pagination", () => {
+run("detects label-based icon pagination", () => {
   const document = makeDocument(`
     <nav aria-label="pages">
       <ul class="pagination">
@@ -128,7 +128,7 @@ run("detects Shopware label-based icon pagination", () => {
         </li>
       </ul>
     </nav>
-  `, "https://www.gruenhorn.de/live-bestand/?order=live-bestand-bluten");
+  `, "https://catalog.example.test/listings/?order=inventory");
   const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
 
   assert.equal(result.state, "tentative");
@@ -141,33 +141,33 @@ run("detects Shopware label-based icon pagination", () => {
 run("prefers load more over footer partner links", () => {
   const document = makeDocument(`
     <main>
-      <h1>Extrakte</h1>
+      <h1>Products</h1>
       <section class="product-grid">
         <button class="load-more">mehr laden</button>
       </section>
     </main>
     <footer class="footer partner-banner">
-      <a href="https://hanfverband.de/" aria-label="Hanfverband">
+      <a href="https://partner.example.test/" aria-label="Partner">
         <svg class="feather feather-chevron-right"></svg>
       </a>
     </footer>
-  `, "https://flowzz.com/extract");
+  `, "https://loadmore.example.test/listings");
   const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
 
   assert.equal(result.state, "tentative");
   assert.equal(result.directions.next.best.type, "click");
   assert.match(result.directions.next.best.text, /mehr laden/);
-  assert.notEqual(result.directions.next.best.href, "https://hanfverband.de/");
+  assert.notEqual(result.directions.next.best.href, "https://partner.example.test/");
 });
 
-run("promotes exact Flowzz load more button", () => {
+run("promotes exact load more button", () => {
   const document = makeDocument(`
     <main>
       <div class="MuiGrid2-root">
         <button class="MuiButtonBase-root MuiButton-root MuiButton-text" tabindex="0" type="button">mehr laden</button>
       </div>
     </main>
-  `, "https://flowzz.com/cannatree-rats-apotheke?pagination%5Bpage%5D=1");
+  `, "https://loadmore.example.test/catalog?pagination%5Bpage%5D=1");
   const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
 
   assert.equal(result.state, "tentative");
@@ -182,17 +182,17 @@ run("detects German page-next pagination links", () => {
         <li>Product</li>
       </ol>
       <nav class="pages">
-        <a class="action next" href="/cannabis-blueten/filter/lagerbestand-in/?p=2" title="Seite Weiter">
+        <a class="action next" href="/products/filter/in-stock/?p=2" title="Seite Weiter">
           <span>Seite Weiter</span>
         </a>
-        <a href="/cannabis-blueten/">Alle Produkte</a>
+        <a href="/products/">Alle Produkte</a>
       </nav>
     </main>
-  `, "https://www.bluetenbude.de/cannabis-blueten/filter/lagerbestand-in/");
+  `, "https://pagination.example.test/products/filter/in-stock/");
   const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
 
   assert.equal(result.state, "happy");
-  assert.equal(result.directions.next.best.href, "https://www.bluetenbude.de/cannabis-blueten/filter/lagerbestand-in/?p=2");
+  assert.equal(result.directions.next.best.href, "https://pagination.example.test/products/filter/in-stock/?p=2");
 });
 
 run("prefers numbered pagination over blog weiterlesen links", () => {
@@ -202,22 +202,22 @@ run("prefers numbered pagination over blog weiterlesen links", () => {
         <article>Product list</article>
         <nav class="pagination">
           <span class="current">1</span>
-          <a href="/extrakte?page=2">2</a>
-          <a href="/extrakte?page=3">3</a>
+          <a href="/products?page=2">2</a>
+          <a href="/products?page=3">3</a>
         </nav>
       </section>
       <section class="ratgeber blog">
         <article>
-          <h2>Das Endocannabinoid-System</h2>
-          <a href="/blog/das-endocannabinoid-system-ecs-jeder-mensch-braucht-cannabinoide">weiterlesen</a>
+          <h2>Generic Buying Guide</h2>
+          <a href="/blog/generic-buying-guide">weiterlesen</a>
         </article>
       </section>
     </main>
-  `, "https://bavarian-cannabis.com/extrakte");
+  `, "https://numbers.example.test/products");
   const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
 
   assert.equal(result.state, "happy");
-  assert.equal(result.directions.next.best.href, "https://bavarian-cannabis.com/extrakte?page=2");
+  assert.equal(result.directions.next.best.href, "https://numbers.example.test/products?page=2");
 });
 
 run("advances from numeric page two to page three", () => {
@@ -225,18 +225,18 @@ run("advances from numeric page two to page three", () => {
     <main>
       <section class="products">
         <nav class="pagination">
-          <a href="/extrakte?page=1">1</a>
+          <a href="/products?page=1">1</a>
           <span class="current">2</span>
-          <a href="/extrakte?page=3">3</a>
+          <a href="/products?page=3">3</a>
         </nav>
       </section>
     </main>
-  `, "https://bavarian-cannabis.com/extrakte?page=2");
+  `, "https://numbers.example.test/products?page=2");
   const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
 
   assert.equal(result.state, "happy");
-  assert.equal(result.directions.next.best.href, "https://bavarian-cannabis.com/extrakte?page=3");
-  assert.equal(result.directions.previous.best.href, "https://bavarian-cannabis.com/extrakte?page=1");
+  assert.equal(result.directions.next.best.href, "https://numbers.example.test/products?page=3");
+  assert.equal(result.directions.previous.best.href, "https://numbers.example.test/products?page=1");
 });
 
 
@@ -247,7 +247,7 @@ run("ignores excluded failed click candidates", () => {
         <button class="load-more">mehr laden</button>
       </section>
     </main>
-  `, "https://flowzz.com/extract");
+  `, "https://loadmore.example.test/listings");
   const first = scoring.analyzeNavigation(document, { location: document.defaultView.location });
   const second = scoring.analyzeNavigation(document, {
     location: document.defaultView.location,
@@ -265,23 +265,23 @@ run("ignores disabled load more controls", () => {
         <button class="load-more disabled" aria-disabled="true">mehr laden</button>
       </section>
     </main>
-  `, "https://flowzz.com/extract");
+  `, "https://loadmore.example.test/listings");
   const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
 
   assert.equal(result.directions.next.confidence, "none");
 });
 
-run("does not treat ordinary content links named next as page navigation", () => {
+run("does not treat ordinary wiki links named next as page navigation", () => {
   const document = makeDocument(`
     <main class="article">
       <h1>Long List</h1>
       <p>
         Some pages have content links whose names include directional words.
-        <a href="/pmwiki/pmwiki.php/Main/NextSundayAD">Next Sunday A.D.</a>
-        <a href="/pmwiki/pmwiki.php/Main/PreviousTropes">Previous Tropes</a>
+        <a href="/pmwiki/pmwiki.php/Main/NextTopic">Next Topic</a>
+        <a href="/pmwiki/pmwiki.php/Main/PreviousTopic">Previous Topic</a>
       </p>
     </main>
-  `, "https://tvtropes.org/pmwiki/pmwiki.php/Main/LongList");
+  `, "https://wiki.example.test/pmwiki/pmwiki.php/Main/LongList");
   const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
 
   assert.equal(result.state, "none");
@@ -289,14 +289,14 @@ run("does not treat ordinary content links named next as page navigation", () =>
   assert.equal(result.directions.previous.confidence, "none");
 });
 
-run("ignores TV Tropes utility chrome on article pages", () => {
+run("ignores wiki utility chrome on article pages", () => {
   const document = makeDocument(`
     <header class="top-navbar">
-      <a href="/pmwiki/pmwiki.php/Main/Tropes">Tropes</a>
+      <a href="/pmwiki/pmwiki.php/Main/Topics">Topics</a>
       <a href="/pmwiki/pmwiki.php/Main/LongList?action=source">More Page Source</a>
       <a href="/pmwiki/pmwiki.php/Main/LongList?action=edit">Edit Page</a>
       <a href="/login.php">Login</a>
-      <a class="social-facebook" href="https://www.facebook.com/tvtropes" aria-label="Follow TV Tropes on Facebook">f</a>
+      <a class="social-facebook" href="https://social.example.test/wiki" aria-label="Follow the wiki on social media">f</a>
     </header>
     <main class="article">
       <h1>Long List</h1>
@@ -307,7 +307,7 @@ run("ignores TV Tropes utility chrome on article pages", () => {
       <a href="/pmwiki/pmwiki.php/Main/GoAdFree">Go Ad Free!</a>
       <a href="/pmwiki/pmwiki.php/Main/ImportantLinks">More</a>
     </aside>
-  `, "https://tvtropes.org/pmwiki/pmwiki.php/Main/LongList");
+  `, "https://wiki.example.test/pmwiki/pmwiki.php/Main/LongList");
   const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
 
   assert.equal(result.state, "none");

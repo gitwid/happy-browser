@@ -91,7 +91,7 @@ Happy Browser needs access to normal web pages so it can inspect visible page co
 Compliance notes:
 
 - See `docs/app-store-compliance.md`.
-- Current build sets `ITSAppUsesNonExemptEncryption = NO`.
+- The Xcode project sets `INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO`.
 - If Happy Browser adds API calls, sync, analytics, AI services, accounts, telemetry, or custom cryptography, revisit export compliance and privacy answers before uploading another build.
 
 ## First TestFlight Goal

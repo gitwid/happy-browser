@@ -54,7 +54,6 @@
   const NEGATIVE_TEXT = [
     "login",
     "sign in",
-    "register",
     "cart",
     "basket",
     "checkout",
