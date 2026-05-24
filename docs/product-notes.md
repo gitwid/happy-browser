@@ -2,22 +2,22 @@
 
 ## Known Good Patterns
 
-- `https://flowzz.com/markus-apotheke-saarbrcken?pagination%5Bpage%5D=6`
+- `https://redacted`
   - Correctly treats `mehr laden` as the Happy action.
-- `https://shop.dransay.com/products?...`
+- `https://redacted...`
   - At footer/end, correctly reaches the calm `End reached` state.
-- `https://flowzz.com/bayreuth-cannabis?pagination%5Bpage%5D=4`
+- `https://redacted`
   - Testbed for inner scroll containers where top-level window scroll is not enough.
-- `https://www.bluetenbude.de/cannabis-blueten/filter/lagerbestand-in/`
+- `redacted`
   - German/Magento-style pagination using `Seite Weiter` for page 2.
-- `https://bavarian-cannabis.com/extrakte`
+- `redacted`
   - Thorough regression target: numbered pagination must beat blog/Ratgeber `weiterlesen`, and page 2 must advance to page 3.
 
 ## Known Issues
 
 - Shift-click pass-through works, but the rail does not yet become transparent on Shift-hover. This makes the target under the rail hard to inspect before click-through.
-- `https://flowzz.com/rhein-apotheke-im-rztehaus-mhlburg` once scrolled to the bottom after load; mitigated with a startup gesture grace period, but keep an eye on it.
-- `https://flowzz.com/seo-gruene-wirkstoffe` scrolled several page lengths unrequested; watch for startup or trackpad gesture false positives.
+- `redacted` once scrolled to the bottom after load; mitigated with a startup gesture grace period, but keep an eye on it.
+- `redacted` scrolled several page lengths unrequested; watch for startup or trackpad gesture false positives.
 - `https://tvtropes.org/pmwiki/pmwiki.php/Main/LongList` is a good ambiguous-page testbed: ordinary article links can contain words like "Next" or "Previous" without being page-level navigation. Happy should avoid claiming confidence there unless a real navigation structure is found.
 
 ## Future Ideas
