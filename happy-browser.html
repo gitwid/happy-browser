@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<!--
+  HAPPY BROWSER — concept artifact · Pearl Network / the-foam
+  ===========================================================
+  Three modes, one substrate.
+
+  BROWSING — page parsed into hex instances; every button, every frame,
+             every auth surface re-materialised as a refraction object.
+             Navigation primitive replaces prev/next with a reliability-
+             scored sweep rail. Drag left/right.
+
+  TAPESTRY — all query results co-present as a foveated 3D tile space.
+             Mouse position determines focus depth. Each tile is its own
+             browser instance. The impossible becomes the default.
+
+  VALET    — an agent drives every interactive element. Hover to see what
+             the valet sees. Auth cells: sealed, valet-mandatory, no direct
+             access. Privacy ↔ breakage slider determines scope.
+
+  No external dependencies. Pure Canvas 2D + CSS. Self-contained.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Happy Browser · Pearl Network</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  width:100%;height:100%;overflow:hidden;
+  background:#030306;
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;
+  -webkit-font-smoothing:antialiased;
+  touch-action:none;
+  user-select:none;-webkit-user-select:none;
+}
+#c{display:block;position:fixed;inset:0;cursor:crosshair}
+
+/* ── tapestry DOM layer ── */
+#tapestry{
+  position:fixed;inset:0;
+  perspective:900px;perspective-origin:50% 45%;
+  pointer-events:none;opacity:0;
+  transition:opacity .55s ease;
+  z-index:5;
+}
+#tapestry.open{pointer-events:auto;opacity:1}
+.ttile{
+  position:absolute;border-radius:12px;overflow:hidden;
+  border:1px solid rgba(255,255,255,.07);
+  cursor:pointer;
+  transition:transform .55s cubic-bezier(.22,1,.36,1),
+             box-shadow .3s,
+             opacity .55s;
+  will-change:transform;
+}
+.ttile canvas{display:block;width:100%;height:100%;pointer-events:none}
+.ttile .tlabel{
+  position:absolute;bottom:0;left:0;right:0;
+  padding:6px 10px;
+  background:linear-gradient(to top,rgba(4,4,7,.88),transparent);
+  font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  color:rgba(255,255,255,.4);pointer-events:none;
+}
+.ttile.focused{
+  z-index:10;
+  box-shadow:0 0 0 1.5px rgba(123,94,167,.55), 0 24px 60px rgba(0,0,0,.55);
+}
+.ttile:not(.focused){opacity:.72}
+
+/* ── HUD ── */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:20}
+
+/* mode buttons */
+#modes{
+  position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
+  display:flex;gap:8px;pointer-events:auto;
+}
+.mbtn{
+  height:34px;padding:0 16px;border-radius:17px;border:none;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.4);
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  cursor:pointer;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:all .3s;
+}
+.mbtn:hover{background:rgba(255,255,255,.1);color:rgba(255,255,255,.65)}
+.mbtn.active{
+  background:rgba(123,94,167,.22);
+  border-color:rgba(123,94,167,.48);
+  color:rgba(210,185,255,.9);
+}
+
+/* tooltip */
+#tip{
+  position:absolute;pointer-events:none;
+  background:rgba(14,9,26,.94);
+  border:1px solid rgba(123,94,167,.3);
+  border-radius:8px;padding:8px 12px;
+  font-size:10px;letter-spacing:.05em;
+  color:rgba(210,185,255,.85);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  opacity:0;transition:opacity .18s;
+  white-space:nowrap;z-index:30;
+}
+#tip.show{opacity:1}
+
+/* valet scope slider */
+#valet-scope{
+  position:absolute;bottom:66px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:10px;
+  pointer-events:auto;opacity:0;
+  transition:opacity .4s;
+}
+#valet-scope.show{opacity:1}
+#valet-scope span{
+  font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(180,155,230,.4);white-space:nowrap;
+}
+#vscope{
+  width:100px;height:3px;
+  -webkit-appearance:none;appearance:none;
+  background:rgba(123,94,167,.25);border-radius:2px;cursor:pointer;
+  outline:none;
+}
+#vscope::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:rgba(180,140,240,.85);
+  box-shadow:0 0 6px rgba(180,140,240,.5);
+  cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div id="tapestry"></div>
+
+<div id="hud">
+  <div id="tip"></div>
+
+  <div id="valet-scope">
+    <span>privacy</span>
+    <input type="range" id="vscope" min="0" max="100" value="62">
+    <span>scope</span>
+  </div>
+
+  <div id="modes">
+    <button class="mbtn active" data-m="browsing">Browse</button>
+    <button class="mbtn"        data-m="tapestry">Tapestry</button>
+    <button class="mbtn"        data-m="valet">Valet</button>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ══════════════════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════════════════
+const STATUS_H = 44;
+const ADDR_H   = 46;
+const TOP_H    = STATUS_H + ADDR_H;   // 90px
+const NAV_H    = 82;                  // nav sweep rail height
+const BTN_H    = 62;                  // mode button area
+const PAD      = 12;                  // viewport side padding
+const HEX_R    = 8.5;                 // hex cell radius
+
+const RESULTS = [
+  {title:'Pearl Network Architecture',   rel:0.97, dead:false},
+  {title:'Noetic POC Brief',             rel:0.91, dead:false},
+  {title:'Happy Browser · Substrate',   rel:1.00, dead:false},
+  {title:'Valet Module · Specification', rel:0.74, dead:false},
+  {title:'Attractor Basin Navigation',   rel:0.43, dead:false},
+  {title:'Broken Source — archived',     rel:0.12, dead:true },
+];
+let resultIdx = 2;
+
+// Page element zones, normalized to viewport height (0..1)
+const ELEMS = [
+  {type:'nav',     y0:0.00,y1:0.08, label:'navigation bar',                rel:0.95, valetAct:'map links'},
+  {type:'visual',  y0:0.08,y1:0.30, label:'hero · render surface',         rel:1.00, valetAct:'extract asset'},
+  {type:'semantic',y0:0.32,y1:0.60, label:'content · readable · indexed',  rel:1.00, valetAct:'parse text'},
+  {type:'cta',     y0:0.62,y1:0.72, label:'actions · valet-eligible',      rel:0.87, valetAct:'drive interaction'},
+  {type:'auth',    y0:0.74,y1:0.90, label:'auth · sealed · valet-mandatory',rel:null,valetAct:'sealed — valet only'},
+  {type:'footer',  y0:0.92,y1:1.00, label:'footer · low-priority',         rel:0.99, valetAct:'skip'},
+];
+
+// Hue per type for hex coloring
+const EHUE = {nav:270,visual:220,semantic:145,cta:36,auth:0,footer:220};
+const ESAT = {nav:52, visual:55, semantic:42, cta:65,auth:65,footer:20};
+const ELIT = {nav:48, visual:42, semantic:38, cta:46,auth:42,footer:34};
+
+// ══════════════════════════════════════════════════════════════
+// CANVAS
+// ══════════════════════════════════════════════════════════════
+const C   = document.getElementById('c');
+const ctx = C.getContext('2d');
+const DPR = Math.min(window.devicePixelRatio||1, 2);
+let CW = 0, CH = 0;
+
+function resize(){
+  CW = window.innerWidth;
+  CH = window.innerHeight;
+  C.width  = CW * DPR;
+  C.height = CH * DPR;
+  C.style.width  = CW+'px';
+  C.style.height = CH+'px';
+  buildHex();
+  buildTapestry();
+}
+
+// ══════════════════════════════════════════════════════════════
+// HEX GRID
+// ══════════════════════════════════════════════════════════════
+let hexCells = [];
+
+function buildHex(){
+  hexCells = [];
+  const vx = PAD, vy = TOP_H;
+  const vw = CW - PAD*2;
+  const vh = CH - TOP_H - NAV_H - BTN_H;
+
+  const rw = Math.sqrt(3) * HEX_R;
+  const rh = HEX_R * 1.5;
+  const cols = Math.ceil(vw/rw)+2;
+  const rows = Math.ceil(vh/rh)+2;
+
+  for(let row=0;row<rows;row++){
+    for(let col=0;col<cols;col++){
+      const cx = vx + col*rw + (row%2===1 ? rw/2 : 0) - rw/2;
+      const cy = vy + row*rh;
+      const normY = (cy - vy)/vh;
+      let elem = null;
+      for(const e of ELEMS){ if(normY>=e.y0&&normY<e.y1){elem=e;break;} }
+      hexCells.push({cx,cy,elem,pulse:Math.random()*Math.PI*2});
+    }
+  }
+}
+
+function drawHex(cx,cy,r,fill,stroke,alpha){
+  ctx.beginPath();
+  for(let i=0;i<6;i++){
+    const a = i*Math.PI/3 - Math.PI/6;
+    const x = cx+r*Math.cos(a), y = cy+r*Math.sin(a);
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  if(fill){ ctx.globalAlpha=alpha; ctx.fillStyle=fill; ctx.fill(); }
+  if(stroke){ ctx.globalAlpha=alpha*.6; ctx.strokeStyle=stroke; ctx.lineWidth=.5; ctx.stroke(); }
+  ctx.globalAlpha=1;
+}
+
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+let mode        = 'parsing';
+let parseY      = 0;          // 0..1 parse sweep
+let isDragging  = false;
+let dragStartX  = 0;
+let sweepOfs    = 0;          // drag offset px
+let sweepV      = 0;          // velocity
+let mx = -1, my = -1;
+let hovCell     = null;
+let valetElem   = 0;
+let valetDwell  = 0;
+const VALET_MS  = 1100;
+let valetCurX   = 0, valetCurY = 0; // valet cursor actual pos
+let valetTgtX   = 0, valetTgtY = 0; // target pos
+
+// Dermis particles
+const NPART = 100;
+const parts = [];
+for(let i=0;i<NPART;i++) parts.push({
+  x:Math.random(),y:Math.random(),
+  vx:(Math.random()-.5)*.0002,vy:(Math.random()-.5)*.00015,
+  r:Math.random()*1.2+.3,hue:240+Math.random()*80,
+  life:Math.random()*Math.PI*2,speed:.003+Math.random()*.003,
+  drift:Math.random()*Math.PI*2
+});
+function flowAng(x,y,t){ return Math.sin(x*3+t*.16)*Math.PI+Math.cos(y*2.7+t*.12)*Math.PI*.5; }
+
+// ══════════════════════════════════════════════════════════════
+// TAPESTRY DOM TILES
+// ══════════════════════════════════════════════════════════════
+const tapestryEl = document.getElementById('tapestry');
+let ttiles = [];
+
+const TILE_LAYOUTS = [
+  // [left%, top%, w%, h%, rotY, rotX, tz]
+  [8,  10, 25, 38,  8, -3,  -60],
+  [36,  6, 28, 42,  0,  0,    0], // center — current
+  [67,  9, 25, 38, -8, -3,  -60],
+  [5,  56, 22, 32, 10, -2, -100],
+  [29, 54, 26, 36,  2,  1,  -30],
+  [58, 52, 24, 34, -4,  2,  -50],
+  [80, 55, 16, 28,-12, -4, -120],
+];
+
+function buildTapestry(){
+  tapestryEl.innerHTML='';
+  ttiles=[];
+  const layouts = TILE_LAYOUTS;
+  layouts.forEach(function([lp,tp,wp,hp,ry,rx,tz],i){
+    const tile = document.createElement('div');
+    tile.className='ttile'+(i===1?' focused':'');
+    const l = CW*lp/100, t = CH*tp/100;
+    const w = CW*wp/100, h = CH*hp/100;
+    tile.style.cssText=`left:${l}px;top:${t}px;width:${w}px;height:${h}px;
+      transform:perspective(800px) rotateY(${ry}deg) rotateX(${rx}deg) translateZ(${tz}px);
+      background:rgba(8,6,18,.72);`;
+
+    const tc = document.createElement('canvas');
+    tc.width=Math.round(w*DPR); tc.height=Math.round(h*DPR);
+    tile.appendChild(tc);
+
+    const lbl=document.createElement('div');
+    lbl.className='tlabel';
+    const res = RESULTS[(resultIdx-1+i)%RESULTS.length];
+    lbl.textContent=res ? relLabel(res.rel)+' · '+res.title : '—';
+    tile.appendChild(lbl);
+
+    tile.addEventListener('click',function(){
+      resultIdx=(resultIdx-1+i)%RESULTS.length;
+      rebuildTileLabels();
+      setMode('browsing');
+    });
+
+    tapestryEl.appendChild(tile);
+    ttiles.push({el:tile,canvas:tc,ctx:tc.getContext('2d'),w,h,
+      ry,rx,tz,baseL:l,baseT:t,idx:i});
+  });
+  drawTileMinis();
+}
+
+function rebuildTileLabels(){
+  ttiles.forEach(function(t,i){
+    const res=RESULTS[(resultIdx-1+i)%RESULTS.length];
+    t.el.querySelector('.tlabel').textContent=
+      res ? relLabel(res.rel)+' · '+res.title : '—';
+  });
+}
+
+function relLabel(rel){
+  if(rel===null) return '⊘';
+  if(rel>=0.9)  return '✓';
+  if(rel>=0.6)  return '⚠';
+  return '✕';
+}
+
+function drawTileMinis(){
+  ttiles.forEach(function(t){
+    const c=t.ctx; const w=t.w*DPR; const h=t.h*DPR;
+    c.clearRect(0,0,w,h);
+    const vhRatio = t.h/(CH-TOP_H-NAV_H-BTN_H);
+    ELEMS.forEach(function(e){
+      const y0=h*e.y0*vhRatio*1.4, y1=h*e.y1*vhRatio*1.4;
+      const hue=EHUE[e.type], sat=ESAT[e.type], lit=ELIT[e.type];
+      c.fillStyle=`hsla(${hue},${sat}%,${lit}%,.22)`;
+      c.fillRect(0,y0,w,Math.max(1,y1-y0));
+      c.fillStyle=`hsla(${hue},${sat}%,${lit+15}%,.08)`;
+      c.fillRect(0,y0,w,1.5);
+    });
+    // hex dots suggestion
+    for(let row=0;row<12;row++){
+      for(let col=0;col<8;col++){
+        const x=(col*w/8)+(row%2?w/16:0);
+        const y=row*h/12;
+        const normY=y/h;
+        let e=null;
+        for(const el of ELEMS){if(normY>=el.y0*1.4&&normY<el.y1*1.4){e=el;break;}}
+        if(e){
+          c.beginPath();
+          c.arc(x,y,w/80,0,Math.PI*2);
+          c.fillStyle=`hsla(${EHUE[e.type]},${ESAT[e.type]}%,${ELIT[e.type]+20}%,.35)`;
+          c.fill();
+        }
+      }
+    }
+  });
+}
+
+function updateTapestryFocus(){
+  if(mode!=='tapestry') return;
+  const cx=CW/2, cy=CH*.45;
+  const dx=mx-cx, dy=my-cy;
+  ttiles.forEach(function(t,i){
+    const tcx=t.baseL+t.w/2, tcy=t.baseT+t.h/2;
+    const d=Math.hypot(tcx-mx, tcy-my);
+    const maxD=Math.max(CW,CH)*.7;
+    const prox=Math.max(0,1-d/maxD);
+    const foc=prox>.55;
+    t.el.classList.toggle('focused',foc);
+    const extra=prox*30;
+    const tiltX=dx/CW*-6, tiltY=dy/CH*4;
+    t.el.style.transform=
+      `perspective(900px) rotateY(${t.ry+tiltX}deg) rotateX(${t.rx+tiltY}deg)`+
+      `translateZ(${t.tz+extra}px)`;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// DRAW HELPERS
+// ══════════════════════════════════════════════════════════════
+function hsl(h,s,l,a){ return `hsla(${h},${s}%,${l}%,${a})`; }
+
+// viewport region
+function vport(){
+  return {
+    x:PAD, y:TOP_H,
+    w:CW-PAD*2,
+    h:CH-TOP_H-NAV_H-BTN_H,
+  };
+}
+
+function drawDermis(t){
+  const vg=ctx.createRadialGradient(CW*.5,CH*.5,CH*.1,CW*.5,CH*.5,CH*.8);
+  vg.addColorStop(0,'rgba(18,8,38,.0)'); vg.addColorStop(1,'rgba(3,3,6,.5)');
+  ctx.fillStyle=vg; ctx.fillRect(0,0,CW,CH);
+  for(let i=0;i<NPART;i++){
+    const p=parts[i]; p.life+=p.speed;
+    const ang=flowAng(p.x,p.y,t*.001)+p.drift;
+    p.x+=Math.cos(ang)*p.vx+p.vx; p.y+=Math.sin(ang)*p.vy+p.vy;
+    if(p.x<0)p.x=1; if(p.x>1)p.x=0; if(p.y<0)p.y=1; if(p.y>1)p.y=0;
+    ctx.beginPath();
+    ctx.arc(p.x*CW,p.y*CH,p.r,0,Math.PI*2);
+    ctx.fillStyle=`hsla(${p.hue},55%,55%,${(.2+.15*Math.sin(p.life))})`;
+    ctx.fill();
+  }
+}
+
+function drawStatusBar(){
+  ctx.fillStyle='rgba(4,4,7,.78)';
+  ctx.fillRect(0,0,CW,STATUS_H);
+  ctx.fillStyle='rgba(255,255,255,.5)';
+  ctx.font='12px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.textBaseline='middle';
+  ctx.fillText('happy browser',16,STATUS_H/2);
+  // dots
+  [0,1,2].forEach(function(i){
+    ctx.beginPath();
+    ctx.arc(CW-20-i*14, STATUS_H/2, 3.5, 0,Math.PI*2);
+    ctx.fillStyle=i===0
+      ? 'rgba(123,94,167,.9)'
+      : 'rgba(255,255,255,.28)';
+    ctx.fill();
+  });
+}
+
+function drawAddrBar(t){
+  ctx.fillStyle='rgba(8,6,18,.62)';
+  ctx.fillRect(0,STATUS_H,CW,ADDR_H);
+  ctx.strokeStyle='rgba(255,255,255,.05)';
+  ctx.lineWidth=1; ctx.beginPath();
+  ctx.moveTo(0,STATUS_H+ADDR_H); ctx.lineTo(CW,STATUS_H+ADDR_H); ctx.stroke();
+
+  // address pill
+  const pw=Math.min(280,CW-80), ph=28;
+  const px=(CW-pw)/2, py=STATUS_H+(ADDR_H-ph)/2;
+  ctx.beginPath();
+  ctx.roundRect(px,py,pw,ph,8);
+  ctx.fillStyle='rgba(255,255,255,.06)'; ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.09)'; ctx.lineWidth=.8; ctx.stroke();
+
+  const res=RESULTS[resultIdx];
+  // reliability dot
+  const rel=res.rel;
+  const rdot=rel===null?'#884':rel>=.9?'#5a9':rel>=.6?'#a84':'#955';
+  ctx.beginPath(); ctx.arc(px+14,py+ph/2,4,0,Math.PI*2);
+  ctx.fillStyle=rdot; ctx.fill();
+
+  // URL text
+  const title=res.title;
+  ctx.font='11px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillStyle='rgba(255,255,255,.6)';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  const maxW=pw-36;
+  ctx.save(); ctx.rect(px+22,py,maxW,ph); ctx.clip();
+  ctx.fillText(title,px+22+maxW/2,py+ph/2);
+  ctx.restore(); ctx.textAlign='left';
+
+  // parse state label (right side of addr bar)
+  const stateStr=mode==='parsing'?'parsing…':
+                 mode==='browsing'?'parsed':
+                 mode==='tapestry'?'tapestry':
+                 'valet';
+  ctx.fillStyle='rgba(180,155,230,.38)';
+  ctx.font='9px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.textAlign='right'; ctx.fillText(stateStr.toUpperCase(),CW-16,STATUS_H+ADDR_H/2);
+  ctx.textAlign='left';
+}
+
+function drawViewport(t){
+  const v=vport();
+  // viewport background
+  ctx.beginPath(); ctx.roundRect(v.x,v.y,v.w,v.h,10);
+  ctx.fillStyle='rgba(10,7,22,.72)'; ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.06)'; ctx.lineWidth=1; ctx.stroke();
+
+  // hex cells
+  const isValet=(mode==='valet');
+  const isBrowse=(mode==='browsing'||mode==='parsing');
+
+  const now=t*.001;
+  hexCells.forEach(function(cell){
+    const {cx,cy,elem,pulse}=cell;
+    if(cx<v.x-HEX_R||cx>v.x+v.w+HEX_R) return;
+    if(cy<v.y-HEX_R||cy>v.y+v.h+HEX_R) return;
+
+    // parse reveal
+    const normY=(cy-v.y)/v.h;
+    const revealed=normY<=parseY;
+    if(!revealed) return;
+
+    const type=elem?elem.type:'footer';
+    const hue=EHUE[type]||230, sat=ESAT[type]||20, lit=ELIT[type]||34;
+
+    // base alpha
+    let alpha=.12+.06*Math.sin(pulse+now*.8);
+
+    // hover highlight
+    let isHov=false;
+    if(hovCell===cell||
+       (hovCell&&hovCell.elem&&cell.elem&&hovCell.elem===cell.elem&&isBrowse)){
+      alpha=Math.min(alpha+.25,.55);
+      isHov=true;
+    }
+
+    // valet highlight
+    if(isValet&&elem&&elem===ELEMS[valetElem]){
+      alpha=.42+.22*Math.sin(now*4);
+    }
+
+    // auth cells always slightly redder in valet
+    if(isValet&&type==='auth'){
+      alpha=Math.max(alpha,.18);
+    }
+
+    const fill=hsl(hue,sat,lit,alpha);
+    const stroke=hsl(hue,sat,lit+15,.3);
+    drawHex(cx,cy,HEX_R*.88,fill,stroke,1);
+
+    // bright leading edge on parse sweep
+    if(parseY<1&&Math.abs(normY-parseY)<.04){
+      drawHex(cx,cy,HEX_R*.88,hsl(hue,sat+20,lit+35,.8),null,1);
+    }
+  });
+
+  // sweep offset (drag to navigate): tilt page via ctx transform
+  if(isDragging&&sweepOfs!==0){
+    // already applied in the main draw — handled via canvas translate
+  }
+}
+
+function drawNavTrack(){
+  const ty=CH-NAV_H-BTN_H;
+  const th=NAV_H;
+
+  ctx.fillStyle='rgba(6,4,14,.72)'; ctx.fillRect(0,ty,CW,th);
+  ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,ty); ctx.lineTo(CW,ty); ctx.stroke();
+
+  // label
+  ctx.font='9px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillStyle='rgba(180,155,230,.3)';
+  ctx.textAlign='center';
+  ctx.fillText('DRAG TO NAVIGATE',CW/2,ty+12);
+  ctx.textAlign='left';
+
+  const slots=RESULTS.length;
+  const slotW=Math.min(130,CW/slots);
+  const totalW=slots*slotW;
+  const startX=(CW-totalW)/2;
+  const ofs=sweepOfs;
+
+  RESULTS.forEach(function(r,i){
+    const isCur=(i===resultIdx);
+    const sx=startX+i*slotW+ofs;
+    const sw=slotW-8;
+    const sy=ty+22;
+    const sh=th-30;
+
+    if(sx+sw<0||sx>CW) return;
+
+    // slot bg
+    ctx.beginPath(); ctx.roundRect(sx,sy,sw,sh,8);
+    ctx.fillStyle=isCur
+      ?'rgba(123,94,167,.18)'
+      :'rgba(255,255,255,.04)';
+    ctx.fill();
+    if(isCur){
+      ctx.strokeStyle='rgba(123,94,167,.4)'; ctx.lineWidth=1; ctx.stroke();
+    }
+
+    // reliability dot
+    const rel=r.rel;
+    const dotC=rel>=.9?'#5a9':rel>=.6?'#a84':'#955';
+    ctx.beginPath(); ctx.arc(sx+10,sy+sh/2,4,0,Math.PI*2);
+    ctx.fillStyle=dotC; ctx.fill();
+
+    // rel %
+    ctx.font='9px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.fillStyle=isCur?'rgba(210,185,255,.8)':'rgba(255,255,255,.3)';
+    ctx.textAlign='left';
+    ctx.fillText(rel!==null?Math.round(rel*100)+'%':'—',sx+19,sy+sh/2-4);
+
+    // title
+    const ttFull=r.title;
+    const tt=ttFull.length>16?ttFull.slice(0,14)+'…':ttFull;
+    ctx.font='10px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.fillStyle=isCur?'rgba(255,255,255,.8)':'rgba(255,255,255,.35)';
+    ctx.fillText(tt,sx+19,sy+sh/2+9);
+
+    ctx.textAlign='left';
+  });
+}
+
+function drawValetCursor(t){
+  if(mode!=='valet') return;
+  const now=t*.001;
+  // lerp cursor to target
+  valetCurX+=(valetTgtX-valetCurX)*.12;
+  valetCurY+=(valetTgtY-valetCurY)*.12;
+
+  const pulse=.7+.3*Math.sin(now*5);
+  // outer ring
+  ctx.beginPath(); ctx.arc(valetCurX,valetCurY,10,0,Math.PI*2);
+  ctx.strokeStyle=`rgba(180,140,240,${.5*pulse})`; ctx.lineWidth=1.5; ctx.stroke();
+  // inner dot
+  ctx.beginPath(); ctx.arc(valetCurX,valetCurY,4,0,Math.PI*2);
+  ctx.fillStyle=`rgba(210,185,255,${.85*pulse})`; ctx.fill();
+  // glow
+  ctx.beginPath(); ctx.arc(valetCurX,valetCurY,18,0,Math.PI*2);
+  ctx.strokeStyle=`rgba(180,140,240,${.15*pulse})`; ctx.lineWidth=6; ctx.stroke();
+
+  // valet action label
+  const elem=ELEMS[valetElem];
+  if(elem){
+    const txt='valet · '+elem.valetAct;
+    ctx.font='10px -apple-system,BlinkMacSystemFont,sans-serif';
+    const tw=ctx.measureText(txt).width;
+    const lx=valetCurX+16, ly=valetCurY-16;
+    ctx.fillStyle='rgba(14,9,26,.9)'; ctx.beginPath();
+    ctx.roundRect(lx-6,ly-10,tw+12,20,6); ctx.fill();
+    ctx.strokeStyle='rgba(123,94,167,.35)'; ctx.lineWidth=.8; ctx.stroke();
+    ctx.fillStyle='rgba(210,185,255,.85)'; ctx.fillText(txt,lx,ly+1);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// TOOLTIP
+// ══════════════════════════════════════════════════════════════
+const tipEl=document.getElementById('tip');
+function showTip(x,y,html){
+  tipEl.innerHTML=html; tipEl.classList.add('show');
+  let tx=x+16, ty=y-10;
+  const tw=tipEl.offsetWidth||180, th=tipEl.offsetHeight||40;
+  if(tx+tw>CW-8) tx=x-tw-10;
+  if(ty+th>CH-70) ty=y-th-8;
+  tipEl.style.left=tx+'px'; tipEl.style.top=ty+'px';
+}
+function hideTip(){ tipEl.classList.remove('show'); }
+
+// ══════════════════════════════════════════════════════════════
+// MODE CONTROL
+// ══════════════════════════════════════════════════════════════
+function setMode(m){
+  mode=m;
+  document.querySelectorAll('.mbtn').forEach(function(b){
+    b.classList.toggle('active',b.dataset.m===m);
+  });
+  const valetScope=document.getElementById('valet-scope');
+  valetScope.classList.toggle('show',m==='valet');
+  tapestryEl.classList.toggle('open',m==='tapestry');
+  if(m==='valet'){
+    valetElem=0; valetDwell=0;
+    setValetTarget();
+    valetCurX=CW/2; valetCurY=CH/2;
+  }
+  if(m==='browsing'&&parseY>=1){
+    // re-flash parse for new result on drag
+  }
+}
+
+function setValetTarget(){
+  const v=vport();
+  const e=ELEMS[valetElem];
+  if(!e) return;
+  valetTgtX=v.x+v.w/2;
+  valetTgtY=v.y+v.h*(e.y0+e.y1)/2;
+}
+
+// ══════════════════════════════════════════════════════════════
+// MAIN LOOP
+// ══════════════════════════════════════════════════════════════
+let last=0;
+function frame(ts){
+  const dt=Math.min(ts-last,40); last=ts;
+
+  ctx.clearRect(0,0,CW,CH);
+  drawDermis(ts);
+
+  // parse sweep
+  if(mode==='parsing'){
+    parseY=Math.min(parseY+PARSE_SPEED*dt,1);
+    if(parseY>=1) setMode('browsing');
+  }
+
+  // drag physics
+  if(!isDragging){
+    sweepOfs+=sweepV; sweepV*=.88;
+    if(Math.abs(sweepV)<.1) sweepV=0;
+    // snap to nearest result
+    if(!isDragging&&Math.abs(sweepV)<1&&sweepOfs!==0){
+      sweepOfs*=.85;
+      if(Math.abs(sweepOfs)<1) sweepOfs=0;
+    }
+  }
+
+  // sweep tilt: apply subtle ctx skew while dragging
+  if((mode==='browsing'||mode==='parsing')&&sweepOfs!==0){
+    const tilt=Math.max(-18,Math.min(18,sweepOfs*.03));
+    const v=vport();
+    ctx.save();
+    ctx.translate(v.x+v.w/2, v.y+v.h/2);
+    ctx.transform(1,0,Math.sin(tilt*Math.PI/180)*.12,1,0,0);
+    ctx.translate(-(v.x+v.w/2),-(v.y+v.h/2));
+    drawViewport(ts);
+    ctx.restore();
+  } else {
+    drawViewport(ts);
+  }
+
+  drawStatusBar();
+  drawAddrBar(ts);
+  drawNavTrack();
+  drawValetCursor(ts);
+
+  // valet advance
+  if(mode==='valet'){
+    valetDwell+=dt;
+    if(valetDwell>=VALET_MS){
+      valetDwell=0;
+      valetElem=(valetElem+1)%ELEMS.length;
+      setValetTarget();
+    }
+  }
+
+  // tapestry foveation
+  if(mode==='tapestry') updateTapestryFocus();
+
+  requestAnimationFrame(frame);
+}
+
+// ══════════════════════════════════════════════════════════════
+// INTERACTION
+// ══════════════════════════════════════════════════════════════
+function ptFrom(e){
+  const src=e.touches?e.touches[0]:e;
+  const r=C.getBoundingClientRect();
+  return {x:(src.clientX-r.left),y:(src.clientY-r.top)};
+}
+
+function updateHover(x,y){
+  mx=x; my=y;
+  if(mode!=='browsing'&&mode!=='valet') return;
+  const v=vport();
+  hovCell=null;
+  let best=Infinity;
+  for(const cell of hexCells){
+    const d=Math.hypot(cell.cx-x,cell.cy-y);
+    if(d<HEX_R*1.4&&d<best){ best=d; hovCell=cell; }
+  }
+  if(hovCell&&hovCell.elem&&mode==='browsing'){
+    const e=hovCell.elem;
+    const relStr=e.rel===null?'⊘ sealed':
+                 e.rel>=.9?`✓ ${Math.round(e.rel*100)}% reliable`:
+                 e.rel>=.6?`⚠ ${Math.round(e.rel*100)}% partial`:
+                 `✕ ${Math.round(e.rel*100)}% unreachable`;
+    const typeCol={nav:'#9b7ed4',visual:'#6888c8',semantic:'#5a9e7a',cta:'#c89040',auth:'#c85050',footer:'#8090a8'};
+    const col=typeCol[e.type]||'#fff';
+    showTip(x,y,
+      `<span style="color:${col};letter-spacing:.12em;text-transform:uppercase;font-size:9px">`+
+      e.type+`</span><br>`+
+      `<span style="opacity:.7">${e.label}</span><br>`+
+      `<span style="opacity:.5;font-size:9px">${relStr}</span>`
+    );
+    C.style.cursor='pointer';
+  } else {
+    hideTip();
+    C.style.cursor='crosshair';
+  }
+}
+
+C.addEventListener('mousemove',function(e){
+  const p=ptFrom(e);
+  updateHover(p.x,p.y);
+  if(isDragging){
+    sweepOfs=p.x-dragStartX;
+    sweepV=p.x-mx;
+  }
+});
+C.addEventListener('mouseleave',function(){
+  mx=-1;my=-1;hovCell=null;hideTip();
+});
+C.addEventListener('mousedown',function(e){
+  const p=ptFrom(e);
+  if(p.y>TOP_H&&p.y<CH-NAV_H-BTN_H&&mode==='browsing'){
+    isDragging=true; dragStartX=p.x-sweepOfs; sweepV=0;
+  }
+});
+window.addEventListener('mouseup',function(e){
+  if(!isDragging) return;
+  isDragging=false;
+  // snap: determine if we moved far enough to go to next/prev result
+  const v=vport();
+  const slotW=Math.min(130,CW/RESULTS.length);
+  if(sweepOfs<-slotW*.45&&resultIdx<RESULTS.length-1){
+    resultIdx++;
+    sweepV=-3;
+    setTimeout(function(){ sweepOfs=0; sweepV=0; },300);
+  } else if(sweepOfs>slotW*.45&&resultIdx>0){
+    resultIdx--;
+    sweepV=3;
+    setTimeout(function(){ sweepOfs=0; sweepV=0; },300);
+  } else {
+    sweepV=sweepOfs*.1; sweepOfs=0;
+  }
+});
+
+C.addEventListener('touchmove',function(e){
+  e.preventDefault();
+  const p=ptFrom(e);
+  if(isDragging){ sweepOfs=p.x-dragStartX; sweepV=p.x-mx; }
+  updateHover(p.x,p.y);
+},{passive:false});
+C.addEventListener('touchstart',function(e){
+  e.preventDefault();
+  const p=ptFrom(e);
+  if(p.y>TOP_H&&p.y<CH-NAV_H-BTN_H&&mode==='browsing'){
+    isDragging=true; dragStartX=p.x-sweepOfs; sweepV=0;
+  }
+},{passive:false});
+window.addEventListener('touchend',function(){
+  if(isDragging){ isDragging=false; sweepOfs=0; }
+});
+
+// mode buttons
+document.querySelectorAll('.mbtn').forEach(function(b){
+  b.addEventListener('click',function(){
+    if(b.dataset.m==='tapestry'&&mode!=='tapestry') setMode('tapestry');
+    else if(b.dataset.m==='valet'&&mode!=='valet') setMode('valet');
+    else if(b.dataset.m==='browsing') setMode('browsing');
+  });
+});
+
+window.addEventListener('resize',resize);
+
+// ══════════════════════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════════════════════
+const PARSE_SPEED = 0.0016; // progress per ms
+
+resize();
+setMode('parsing');
+requestAnimationFrame(frame);
+
+}());
+</script>
+</body>
+</html>
