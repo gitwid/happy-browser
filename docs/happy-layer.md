@@ -30,6 +30,13 @@ layer. Its first public module handles page navigation, but the same pattern can
 apply to autofill, query construction, usage observability, and other bounded
 interface failures.
 
+Happy Browser is not a notes layer over the web. Summary-first and delegation-first
+browsers can be useful, but their coherence often lives in an assistant answer or
+a task transcript. Happy's aim is different: it should improve the field itself.
+It should reinforce coherence inside the user's own browsing surface by making
+affordances, uncertainty, privilege, and action paths visible where the user is
+already acting.
+
 ## Design Law
 
 A feature belongs in the Happy family only if it satisfies all five constraints:
@@ -42,6 +49,45 @@ A feature belongs in the Happy family only if it satisfies all five constraints:
 - Bounded: the feature repairs one class of interface friction, not "everything."
 
 If a feature violates these constraints, it is outside the Happy model.
+
+## Adaptive Affordance Geometry
+
+Happy Browser should behave more like glasses than like notes. Glasses do not
+summarize a room; they let the user see the room more clearly. In the same way,
+Happy should not replace a page with a gist when the user's need is to act within
+the page.
+
+The working model is adaptive affordance geometry: authored DOM, rendered pixels,
+accessibility semantics, and observed behavior are evidence for reconstructing a
+user-owned field of action. This field can expose:
+
+- What is surfaced, muted, grouped, sealed, trusted, or uncertain.
+- Which actions are available, risky, repeated, hidden, or ambiguous.
+- Where attention cost and privilege cost are being imposed.
+- Whether a missing affordance is absent, hidden, withheld, ambiguous, or merely
+  undiscovered.
+
+This is not a commitment to a universal browsing UI. It is a doctrine for how
+small features should mature: improve the user's action geometry first, and use
+summaries only when they preserve source accountability and user judgment.
+
+## Missing And Undiscovered
+
+Missing is often not absent. Missing is frequently undiscoverable.
+
+Happy should avoid collapsing all failures into "not found." A failed resolution
+can mean several different things:
+
+- Absent: the affordance, data, or action is not present.
+- Undiscovered: it may exist, but the current parser, classifier, or view did not
+  find it.
+- Withheld: it exists behind auth, permission, scroll, interaction, rate limits,
+  or other gates.
+- Ambiguous: multiple candidates exist and none can be trusted.
+- Unresolved: the user's intent is clear, but no safe path has been established.
+
+The product language should reflect that distinction. "No reliable target found"
+is more honest than "no target exists."
 
 ## Core Architecture
 
@@ -180,4 +226,13 @@ Store-safe description:
 
 Internal north star:
 
-> Happy Browser makes broken interfaces answerable to human intent.
+> Happy Browser is an at-a-glance, least-attention, least-privilege browsing
+> layer that turns fragmented web interactions into coherent, inspectable,
+> user-directed surfaces. It may use agents internally or locally, but only to
+> improve legibility, testing, and configuration, not to replace the user's
+> judgment.
+
+Doctrine line:
+
+> Happy Browser is not a notes layer over the web. It is an adaptive affordance
+> geometry that reinforces coherence inside the user's own browsing field.

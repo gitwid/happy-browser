@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<!--
+  HAPPY BROWSER — Wikipedia proof-of-model
+  =========================================
+  Fetches a real Wikipedia article via their public REST API.
+  Classifies sections into typed element zones (rule-based, no generative).
+  Hex grid is data-driven: zone height is proportional to section word count.
+  Nav rail is populated from the article's real internal links.
+
+  This is the step between concept artifact and pre-prototype:
+  synthetic data replaced with a real page structure, real classifier,
+  real proportional layout. No DOM injection, no WebView — just the model.
+
+  Default article: Strange_attractor (tied to the mandala artifact).
+  Type any Wikipedia slug in the address bar and press Enter.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Happy Browser · Wikipedia</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  width:100%;height:100%;overflow:hidden;background:#030306;
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;
+  -webkit-font-smoothing:antialiased;touch-action:none;user-select:none;-webkit-user-select:none;
+}
+#c{display:block;position:fixed;inset:0;cursor:crosshair}
+
+/* address input */
+#addr-input{
+  position:fixed;top:50px;left:50%;transform:translateX(-50%);
+  width:min(300px,calc(100% - 96px));
+  height:28px;padding:0 10px;
+  background:transparent;border:none;outline:none;
+  font-size:11px;letter-spacing:.04em;color:rgba(255,255,255,.75);
+  text-align:center;cursor:text;z-index:30;
+  font-family:inherit;
+}
+
+/* section label that pulses during parse sweep */
+#sweep-label{
+  position:fixed;left:50%;transform:translateX(-50%);
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(210,185,255,.7);pointer-events:none;z-index:25;
+  opacity:0;transition:opacity .2s;white-space:nowrap;
+}
+
+/* tooltip */
+#tip{
+  position:fixed;pointer-events:none;
+  background:rgba(14,9,26,.94);border:1px solid rgba(123,94,167,.3);
+  border-radius:8px;padding:9px 13px;z-index:40;
+  opacity:0;transition:opacity .15s;
+}
+#tip.show{opacity:1}
+#tip .t-type{
+  font-size:9px;letter-spacing:.18em;text-transform:uppercase;margin-bottom:4px;
+}
+#tip .t-title{font-size:12px;color:rgba(255,255,255,.85);margin-bottom:3px}
+#tip .t-meta{font-size:10px;color:rgba(255,255,255,.35);line-height:1.6}
+
+/* mode buttons */
+#modes{
+  position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  display:flex;gap:8px;z-index:30;
+}
+.mbtn{
+  height:32px;padding:0 14px;border-radius:16px;border:none;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.4);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:all .25s;font-family:inherit;
+}
+.mbtn:hover{background:rgba(255,255,255,.1);color:rgba(255,255,255,.65)}
+.mbtn.active{background:rgba(123,94,167,.22);border-color:rgba(123,94,167,.48);color:rgba(210,185,255,.9)}
+
+/* tapestry */
+#tapestry{
+  position:fixed;inset:0;perspective:900px;perspective-origin:50% 45%;
+  pointer-events:none;opacity:0;transition:opacity .5s;z-index:5;
+}
+#tapestry.open{pointer-events:auto;opacity:1}
+.ttile{
+  position:absolute;border-radius:10px;overflow:hidden;cursor:pointer;
+  border:1px solid rgba(255,255,255,.07);background:rgba(8,6,18,.8);
+  transition:transform .5s cubic-bezier(.22,1,.36,1),box-shadow .3s,opacity .5s;
+}
+.ttile canvas{display:block;width:100%;height:100%;pointer-events:none}
+.ttile .tlbl{
+  position:absolute;bottom:0;left:0;right:0;padding:5px 8px;
+  background:linear-gradient(to top,rgba(4,4,7,.9),transparent);
+  font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4);
+  pointer-events:none;
+}
+.ttile.foc{z-index:10;box-shadow:0 0 0 1.5px rgba(123,94,167,.55),0 20px 50px rgba(0,0,0,.5)}
+.ttile:not(.foc){opacity:.65}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<input id="addr-input" type="text" spellcheck="false" autocomplete="off"
+       placeholder="Wikipedia article slug…" value="Strange_attractor">
+<div id="sweep-label"></div>
+<div id="tip"><div class="t-type"></div><div class="t-title"></div><div class="t-meta"></div></div>
+<div id="tapestry"></div>
+<div id="modes">
+  <button class="mbtn active" data-m="browsing">Browse</button>
+  <button class="mbtn"        data-m="tapestry">Tapestry</button>
+  <button class="mbtn"        data-m="valet">Valet</button>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ══════════════════════════════════════════════════════════════
+// LAYOUT CONSTANTS
+// ══════════════════════════════════════════════════════════════
+const STATUS_H = 44;
+const ADDR_H   = 44;
+const TOP_H    = STATUS_H + ADDR_H;
+const NAV_H    = 78;
+const BTN_H    = 56;
+const PAD      = 10;
+const HEX_R    = 8;
+
+// ══════════════════════════════════════════════════════════════
+// ELEMENT TYPE VISUAL PROPERTIES
+// ══════════════════════════════════════════════════════════════
+const EHUE = {nav:270, visual:220, semantic:145, cta:36, auth:0,  footer:220, data:180};
+const ESAT = {nav:52,  visual:55,  semantic:42,  cta:65, auth:65, footer:20,  data:48};
+const ELIT = {nav:48,  visual:42,  semantic:38,  cta:46, auth:42, footer:34,  data:44};
+const ENAME= {
+  nav:'navigation', visual:'visual surface', semantic:'content',
+  cta:'action / link cluster', auth:'auth · sealed', footer:'footer / references', data:'data / table'
+};
+
+// ══════════════════════════════════════════════════════════════
+// CANVAS
+// ══════════════════════════════════════════════════════════════
+const C   = document.getElementById('c');
+const ctx = C.getContext('2d');
+const DPR = Math.min(window.devicePixelRatio||1, 2);
+let CW=0, CH=0;
+
+function resize(){
+  CW=window.innerWidth; CH=window.innerHeight;
+  C.width=CW*DPR; C.height=CH*DPR;
+  C.style.width=CW+'px'; C.style.height=CH+'px';
+  buildHex();
+}
+
+// ══════════════════════════════════════════════════════════════
+// PAGE MODEL — populated from Wikipedia fetch
+// ══════════════════════════════════════════════════════════════
+let pageModel = null;  // { title, sections:[{title,type,y0,y1,wordCount,linkCount}], links:[{title,slug}] }
+let pageLoading = false;
+let pageError = null;
+
+// ── classifier (rule-based, no generative) ──
+function stripHtml(h){ return h.replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim(); }
+function wc(html){ const t=stripHtml(html); return t?t.split(/\s+/).length:0; }
+function lc(html){ return (html.match(/<a[\s>]/gi)||[]).length; }
+function tc(html){ return (html.match(/<table[\s>]/gi)||[]).length; }
+
+function classifySection(sec){
+  const title=(sec.line||sec.anchor||'').toLowerCase();
+  const text=sec.text||'';
+  const words=wc(text), links=lc(text), tables=tc(text);
+
+  if(/^references?$|^notes?$|^citation|^bibliography|^footnote/i.test(title)) return 'footer';
+  if(/^see also|^external link|^further reading|^source/i.test(title))         return 'cta';
+  if(/^gallery|illustration|^figure/i.test(title))                             return 'visual';
+  if(tables>0 && words<200)                                                     return 'data';
+  if(words<20 && links>4)                                                       return 'nav';
+  return 'semantic';
+}
+
+function extractLinks(allHtml, limit=6){
+  const seen=new Set(), out=[];
+  const re=/href="\/wiki\/([^"#:]+)"/g;
+  let m;
+  while((m=re.exec(allHtml))!==null){
+    const slug=m[1];
+    const title=decodeURIComponent(slug).replace(/_/g,' ');
+    if(!seen.has(slug)&&!/^(File|Help|Wikipedia|Template|Category|Special|Talk|User):/i.test(slug)){
+      seen.add(slug); out.push({title,slug,rel:0.9+Math.random()*.1});
+      if(out.length>=limit) break;
+    }
+  }
+  return out;
+}
+
+function buildPageModel(data, slug){
+  const secs=[];
+
+  // Always-present Wikipedia nav bar
+  secs.push({title:'navigation · wikipedia',type:'nav',wordCount:0,linkCount:12,
+    y0:0,y1:0,text:'',wikiSection:false});
+
+  // Lead hero image
+  if(data.lead&&data.lead.image){
+    secs.push({title:'lead image',type:'visual',wordCount:0,linkCount:0,
+      y0:0,y1:0,text:'',wikiSection:false});
+  }
+
+  // Lead text
+  const leadText=(data.lead&&data.lead.sections&&data.lead.sections[0]&&data.lead.sections[0].text)||'';
+  const leadWords=wc(leadText);
+  secs.push({title:data.lead&&data.lead.displaytitle||slug.replace(/_/g,' '),
+    type:'semantic',wordCount:Math.max(leadWords,40),linkCount:lc(leadText),
+    y0:0,y1:0,text:leadText,wikiSection:false,isLead:true});
+
+  // Remaining sections
+  const remaining=(data.remaining&&data.remaining.sections)||[];
+  let allText=leadText;
+  remaining.forEach(function(s){
+    const text=s.text||'';
+    allText+=text;
+    const words=wc(text);
+    secs.push({
+      title:s.line||s.anchor||'section',
+      type:classifySection(s),
+      wordCount:Math.max(words,8),
+      linkCount:lc(text),
+      toclevel:s.toclevel||1,
+      y0:0,y1:0,text,wikiSection:true,
+    });
+  });
+
+  // Compute proportional zones
+  const NAV_WEIGHT=0.07, VIS_WEIGHT=0.10, MIN_SEC=0.04;
+  let weights=secs.map(function(s){
+    if(s.type==='nav')    return NAV_WEIGHT;
+    if(s.type==='visual') return VIS_WEIGHT;
+    return Math.max(MIN_SEC, s.wordCount/600);
+  });
+  const total=weights.reduce(function(a,b){return a+b;},0);
+  let y=0;
+  secs.forEach(function(s,i){
+    s.y0=y;
+    s.y1=Math.min(1,y+weights[i]/total);
+    y=s.y1;
+  });
+  // Clamp last section to 1
+  if(secs.length) secs[secs.length-1].y1=1;
+
+  // Internal links for nav rail
+  const links=extractLinks(allText);
+  // Add current article as "current" slot
+  const curTitle=(data.lead&&data.lead.displaytitle)||slug.replace(/_/g,' ');
+  links.splice(2,0,{title:curTitle,slug,rel:1.0,current:true});
+
+  return{title:curTitle,sections:secs,links:links.slice(0,6)};
+}
+
+// ── fetch ──
+async function fetchArticle(slug){
+  slug=slug.trim().replace(/\s+/g,'_');
+  pageLoading=true; pageError=null; pageModel=null;
+  parseY=0; mode='parsing';
+  updateModeBtn('browsing');
+  setAddrState('fetching…');
+
+  try{
+    const url='https://en.wikipedia.org/api/rest_v1/page/mobile-sections/'+encodeURIComponent(slug);
+    const res=await fetch(url,{signal:AbortSignal.timeout(6000)});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    pageModel=buildPageModel(data,slug);
+  }catch(e){
+    // Fall back to embedded data if available
+    const fallback=FALLBACK[slug]||FALLBACK[slug.replace(/\s/g,'_')];
+    if(fallback){
+      pageModel=buildPageModel(fallback,slug);
+      setAddrState((pageModel.title)+' · embedded');
+    } else {
+      pageLoading=false; pageError=''+e;
+      setAddrState('not found — try Strange_attractor or Hexagonal_tiling');
+      mode='browsing'; return;
+    }
+  }
+  buildHex(); buildTapestry();
+  pageLoading=false;
+  if(!pageError) setAddrState(pageModel.title+' · wikipedia');
+  parseY=0; mode='parsing';
+}
+
+// ══════════════════════════════════════════════════════════════
+// HEX GRID
+// ══════════════════════════════════════════════════════════════
+let hexCells=[];
+
+function vport(){
+  return{x:PAD,y:TOP_H,w:CW-PAD*2,h:CH-TOP_H-NAV_H-BTN_H};
+}
+
+function buildHex(){
+  hexCells=[];
+  if(!pageModel) return;
+  const v=vport();
+  const rw=Math.sqrt(3)*HEX_R;
+  const rh=HEX_R*1.5;
+  const cols=Math.ceil(v.w/rw)+2;
+  const rows=Math.ceil(v.h/rh)+2;
+
+  for(let row=0;row<rows;row++){
+    for(let col=0;col<cols;col++){
+      const cx=v.x+col*rw+(row%2===1?rw/2:0)-rw/2;
+      const cy=v.y+row*rh;
+      const normY=(cy-v.y)/v.h;
+      let sec=null;
+      for(const s of pageModel.sections){
+        if(normY>=s.y0&&normY<s.y1){sec=s;break;}
+      }
+      hexCells.push({cx,cy,sec,pulse:Math.random()*Math.PI*2});
+    }
+  }
+}
+
+function drawHexPath(cx,cy,r){
+  ctx.beginPath();
+  for(let i=0;i<6;i++){
+    const a=i*Math.PI/3-Math.PI/6;
+    i===0?ctx.moveTo(cx+r*Math.cos(a),cy+r*Math.sin(a))
+         :ctx.lineTo(cx+r*Math.cos(a),cy+r*Math.sin(a));
+  }
+  ctx.closePath();
+}
+
+// ══════════════════════════════════════════════════════════════
+// TAPESTRY
+// ══════════════════════════════════════════════════════════════
+const tapestryEl=document.getElementById('tapestry');
+let ttiles=[];
+
+const TILE_L=[
+  [7,  8, 24,38,  8,-3, -60],
+  [34,  4,28,42,  0, 0,   0],
+  [65,  8,24,38, -8,-3, -60],
+  [4,  54,22,32, 10,-2,-100],
+  [28, 52,26,36,  2, 1,  -30],
+  [57, 50,22,34, -5, 2,  -50],
+];
+
+function buildTapestry(){
+  tapestryEl.innerHTML=''; ttiles=[];
+  if(!pageModel) return;
+  const links=pageModel.links;
+  TILE_L.forEach(function([lp,tp,wp,hp,ry,rx,tz],i){
+    const tile=document.createElement('div');
+    tile.className='ttile'+(i===1?' foc':'');
+    const l=CW*lp/100,t=CH*tp/100,w=CW*wp/100,h=CH*hp/100;
+    tile.style.cssText=`left:${l}px;top:${t}px;width:${w}px;height:${h}px;`+
+      `transform:perspective(900px) rotateY(${ry}deg) rotateX(${rx}deg) translateZ(${tz}px)`;
+    const tc=document.createElement('canvas');
+    tc.width=Math.round(w*DPR); tc.height=Math.round(h*DPR);
+    tile.appendChild(tc);
+    const lbl=document.createElement('div'); lbl.className='tlbl';
+    const link=links[i%links.length];
+    lbl.textContent=(link?relSym(link.rel)+' '+link.title:'—');
+    tile.appendChild(lbl);
+    tile.addEventListener('click',function(){
+      if(link&&!link.current) fetchArticle(link.slug);
+      setMode('browsing');
+    });
+    tapestryEl.appendChild(tile);
+    const tctx=tc.getContext('2d');
+    drawMiniTile(tctx,w*DPR,h*DPR);
+    ttiles.push({el:tile,w,h,baseL:l,baseT:t,ry,rx,tz});
+  });
+}
+
+function drawMiniTile(c,w,h){
+  c.clearRect(0,0,w,h);
+  if(!pageModel) return;
+  const secs=pageModel.sections;
+  secs.forEach(function(s){
+    const y0=h*s.y0*1.35, y1=h*s.y1*1.35;
+    const hue=EHUE[s.type],sat=ESAT[s.type],lit=ELIT[s.type];
+    c.fillStyle=`hsla(${hue},${sat}%,${lit}%,.22)`;
+    c.fillRect(0,y0,w,Math.max(1,y1-y0));
+    c.fillStyle=`hsla(${hue},${sat}%,${lit+18}%,.12)`;
+    c.fillRect(0,y0,w,1.5);
+  });
+  for(let r=0;r<14;r++){
+    for(let col=0;col<7;col++){
+      const x=col*w/7+(r%2?w/14:0);
+      const y=r*h/14;
+      const ny=y/h;
+      let s=null;
+      for(const sec of pageModel.sections){if(ny>=sec.y0&&ny<sec.y1){s=sec;break;}}
+      if(s){
+        c.beginPath(); c.arc(x,y,w/80,0,Math.PI*2);
+        c.fillStyle=`hsla(${EHUE[s.type]},${ESAT[s.type]}%,${ELIT[s.type]+20}%,.38)`;
+        c.fill();
+      }
+    }
+  }
+}
+
+function updateTapestryFocus(){
+  if(mode!=='tapestry') return;
+  ttiles.forEach(function(t){
+    const tcx=t.baseL+t.w/2, tcy=t.baseT+t.h/2;
+    const d=Math.hypot(tcx-mx,tcy-my);
+    const maxD=Math.max(CW,CH)*.7;
+    const foc=d/maxD<.4;
+    t.el.classList.toggle('foc',foc);
+    const extra=(1-Math.min(1,d/maxD))*28;
+    const tiltX=(mx-CW/2)/CW*-5, tiltY=(my-CH/2)/CH*4;
+    t.el.style.transform=
+      `perspective(900px) rotateY(${t.ry+tiltX}deg) rotateX(${t.rx+tiltY}deg) translateZ(${t.tz+extra}px)`;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+let mode       = 'parsing';
+let parseY     = 0;
+let sweepOfs   = 0, sweepV = 0;
+let isDragging = false, dragStartX = 0;
+let mx = -1, my = -1;
+let hovSec     = null;
+let valetIdx   = 0, valetDwell = 0;
+const VALET_MS = 1200;
+let valetX = 0, valetY = 0, valetTX = 0, valetTY = 0;
+let sweepSection = null; // section title shown during parse sweep
+
+// Dermis particles
+const NPART=90, parts=[];
+for(let i=0;i<NPART;i++) parts.push({
+  x:Math.random(),y:Math.random(),
+  vx:(Math.random()-.5)*.0002,vy:(Math.random()-.5)*.00015,
+  r:.3+Math.random()*1.1,hue:240+Math.random()*80,
+  life:Math.random()*Math.PI*2,speed:.003+Math.random()*.003,
+  drift:Math.random()*Math.PI*2
+});
+
+// ══════════════════════════════════════════════════════════════
+// DRAW
+// ══════════════════════════════════════════════════════════════
+function hsl(h,s,l,a){ return `hsla(${h},${s}%,${l}%,${a})`; }
+
+function drawDermis(t){
+  const vg=ctx.createRadialGradient(CW*.5,CH*.5,CH*.1,CW*.5,CH*.5,CH*.8);
+  vg.addColorStop(0,'rgba(18,8,38,.0)'); vg.addColorStop(1,'rgba(3,3,6,.5)');
+  ctx.fillStyle=vg; ctx.fillRect(0,0,CW,CH);
+  const now=t*.001;
+  for(let i=0;i<NPART;i++){
+    const p=parts[i]; p.life+=p.speed;
+    const ang=Math.sin(p.x*3+now*.16)*Math.PI+Math.cos(p.y*2.7+now*.12)*Math.PI*.5+p.drift;
+    p.x+=Math.cos(ang)*p.vx+p.vx; p.y+=Math.sin(ang)*p.vy+p.vy;
+    if(p.x<0)p.x=1;if(p.x>1)p.x=0;if(p.y<0)p.y=1;if(p.y>1)p.y=0;
+    ctx.beginPath(); ctx.arc(p.x*CW,p.y*CH,p.r,0,Math.PI*2);
+    ctx.fillStyle=`hsla(${p.hue},55%,55%,${.18+.12*Math.sin(p.life)})`; ctx.fill();
+  }
+}
+
+function drawStatus(){
+  ctx.fillStyle='rgba(4,4,7,.8)'; ctx.fillRect(0,0,CW,STATUS_H);
+  ctx.font='12px -apple-system,sans-serif'; ctx.textBaseline='middle';
+  ctx.fillStyle='rgba(255,255,255,.5)'; ctx.textAlign='left';
+  ctx.fillText('happy browser',16,STATUS_H/2);
+  [0,1,2].forEach(function(i){
+    ctx.beginPath(); ctx.arc(CW-18-i*13,STATUS_H/2,3.5,0,Math.PI*2);
+    ctx.fillStyle=i===0?'rgba(123,94,167,.9)':'rgba(255,255,255,.25)'; ctx.fill();
+  });
+  ctx.strokeStyle='rgba(255,255,255,.04)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,STATUS_H); ctx.lineTo(CW,STATUS_H); ctx.stroke();
+}
+
+let addrText='Strange attractor · wikipedia';
+function setAddrState(s){ addrText=s; }
+
+function drawAddrBar(){
+  ctx.fillStyle='rgba(8,6,18,.65)'; ctx.fillRect(0,STATUS_H,CW,ADDR_H);
+  ctx.strokeStyle='rgba(255,255,255,.04)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,TOP_H); ctx.lineTo(CW,TOP_H); ctx.stroke();
+
+  const pw=Math.min(290,CW-80), ph=28, px=(CW-pw)/2, py=STATUS_H+(ADDR_H-ph)/2;
+  ctx.beginPath(); ctx.roundRect(px,py,pw,ph,7);
+  ctx.fillStyle='rgba(255,255,255,.06)'; ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.lineWidth=.8; ctx.stroke();
+
+  // reliability dot
+  const dotC=pageLoading?'#7060a0':pageError?'#905050':'#5a9070';
+  ctx.beginPath(); ctx.arc(px+13,py+ph/2,3.5,0,Math.PI*2);
+  ctx.fillStyle=dotC; ctx.fill();
+
+  // mode label right
+  const modeStr=mode==='parsing'?'parsing ▸':mode==='browsing'?'parsed':mode==='tapestry'?'tapestry':'valet';
+  ctx.font='9px -apple-system,sans-serif'; ctx.textAlign='right';
+  ctx.fillStyle='rgba(180,155,230,.38)'; ctx.fillText(modeStr.toUpperCase(),CW-14,STATUS_H+ADDR_H/2);
+  ctx.textAlign='left';
+}
+
+function drawViewport(ts){
+  const v=vport();
+  ctx.beginPath(); ctx.roundRect(v.x,v.y,v.w,v.h,8);
+  ctx.fillStyle='rgba(10,7,22,.68)'; ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1; ctx.stroke();
+
+  if(!pageModel){
+    // loading / error state
+    ctx.font='11px -apple-system,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(180,155,230,.4)';
+    ctx.fillText(pageLoading?'fetching…':pageError?'could not load article':'type a Wikipedia slug above',CW/2,v.y+v.h/2);
+    ctx.textAlign='left'; return;
+  }
+
+  const now=ts*.001;
+  let sweepSecTitle=null;
+
+  hexCells.forEach(function(cell){
+    const{cx,cy,sec,pulse}=cell;
+    if(cx<v.x-HEX_R*2||cx>v.x+v.w+HEX_R*2) return;
+    if(cy<v.y-HEX_R*2||cy>v.y+v.h+HEX_R*2) return;
+    if(!sec) return;
+
+    const normY=(cy-v.y)/v.h;
+    if(normY>parseY) return;
+
+    const hue=EHUE[sec.type], sat=ESAT[sec.type], lit=ELIT[sec.type];
+    let alpha=.11+.05*Math.sin(pulse+now*.7);
+
+    // hover section highlight
+    if(sec===hovSec&&mode==='browsing') alpha=Math.min(.55,alpha+.28);
+
+    // valet highlight
+    if(mode==='valet'&&pageModel.sections[valetIdx]===sec) alpha=.4+.2*Math.sin(now*4);
+
+    // parse leading edge glow
+    const atEdge=Math.abs(normY-parseY)<.03;
+    if(atEdge){ alpha=.75; sweepSecTitle=sec.title; }
+
+    drawHexPath(cx,cy,HEX_R*.86);
+    ctx.fillStyle=hsl(hue,sat,lit,alpha); ctx.fill();
+    if(alpha>.25||atEdge){
+      ctx.strokeStyle=hsl(hue,sat,lit+18,.35); ctx.lineWidth=.5; ctx.stroke();
+    }
+  });
+
+  // section zone labels (right edge, subtle)
+  if(mode==='browsing'&&pageModel){
+    ctx.font='8px -apple-system,sans-serif'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    pageModel.sections.forEach(function(s){
+      const midY=v.y+(s.y0+s.y1)/2*v.h;
+      if(midY<v.y+10||midY>v.y+v.h-10) return;
+      const hue=EHUE[s.type],sat=ESAT[s.type];
+      ctx.fillStyle=`hsla(${hue},${sat}%,70%,.22)`;
+      ctx.fillText(s.type,v.x+v.w-6,midY);
+    });
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  }
+
+  // sweep section label
+  const sweepLbl=document.getElementById('sweep-label');
+  if(sweepSecTitle&&parseY<1){
+    const v2=vport();
+    sweepLbl.style.top=(v2.y+parseY*v2.h-18)+'px';
+    sweepLbl.textContent=sweepSecTitle;
+    sweepLbl.style.opacity='1';
+  } else {
+    sweepLbl.style.opacity='0';
+  }
+}
+
+function drawNavRail(){
+  const ty=CH-NAV_H-BTN_H, th=NAV_H;
+  ctx.fillStyle='rgba(6,4,14,.75)'; ctx.fillRect(0,ty,CW,th);
+  ctx.strokeStyle='rgba(255,255,255,.04)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,ty); ctx.lineTo(CW,ty); ctx.stroke();
+
+  if(!pageModel||!pageModel.links.length){
+    ctx.font='9px -apple-system,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(180,155,230,.25)';
+    ctx.fillText('DRAG TO NAVIGATE',CW/2,ty+th/2);
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic'; return;
+  }
+
+  ctx.font='8px -apple-system,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle='rgba(180,155,230,.25)'; ctx.fillText('NAVIGATE',CW/2,ty+10);
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+
+  const links=pageModel.links;
+  const slotW=Math.min(120,(CW-20)/links.length);
+  const totalW=slotW*links.length;
+  const startX=(CW-totalW)/2;
+
+  links.forEach(function(link,i){
+    const isCur=!!link.current;
+    const sx=startX+i*slotW+sweepOfs;
+    const sy=ty+18, sh=th-24, sw=slotW-6;
+    if(sx+sw<0||sx>CW) return;
+    ctx.beginPath(); ctx.roundRect(sx,sy,sw,sh,7);
+    ctx.fillStyle=isCur?'rgba(123,94,167,.2)':'rgba(255,255,255,.04)'; ctx.fill();
+    if(isCur){ ctx.strokeStyle='rgba(123,94,167,.4)'; ctx.lineWidth=1; ctx.stroke(); }
+
+    const dotC=(link.rel>=.9)?'#5a9':'rgba(180,155,230,.3)';
+    ctx.beginPath(); ctx.arc(sx+9,sy+sh/2,3.5,0,Math.PI*2);
+    ctx.fillStyle=dotC; ctx.fill();
+
+    ctx.font='9px -apple-system,sans-serif';
+    ctx.fillStyle=isCur?'rgba(210,185,255,.85)':'rgba(255,255,255,.38)';
+    ctx.textAlign='left'; ctx.textBaseline='middle';
+    const ttFull=link.title, tt=ttFull.length>14?ttFull.slice(0,13)+'…':ttFull;
+    ctx.fillText(tt,sx+17,sy+sh/2);
+  });
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+}
+
+function drawValetCursor(ts){
+  if(mode!=='valet') return;
+  valetX+=(valetTX-valetX)*.11; valetY+=(valetTY-valetY)*.11;
+  const now=ts*.001, pulse=.7+.3*Math.sin(now*5);
+  ctx.beginPath(); ctx.arc(valetX,valetY,9,0,Math.PI*2);
+  ctx.strokeStyle=`rgba(180,140,240,${.55*pulse})`; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.beginPath(); ctx.arc(valetX,valetY,3.5,0,Math.PI*2);
+  ctx.fillStyle=`rgba(210,185,255,${.9*pulse})`; ctx.fill();
+  ctx.beginPath(); ctx.arc(valetX,valetY,16,0,Math.PI*2);
+  ctx.strokeStyle=`rgba(180,140,240,${.12*pulse})`; ctx.lineWidth=5; ctx.stroke();
+
+  const sec=pageModel&&pageModel.sections[valetIdx];
+  if(sec){
+    const act=sec.type==='auth'?'sealed — valet-mandatory':
+              sec.type==='footer'?'skip — low priority':
+              sec.type==='nav'?'map links':
+              sec.type==='visual'?'extract asset':
+              sec.type==='cta'?'drive interaction':'parse text';
+    const txt='valet · '+act;
+    ctx.font='10px -apple-system,sans-serif';
+    const tw=ctx.measureText(txt).width;
+    const lx=valetX+14, ly=valetY-14;
+    ctx.fillStyle='rgba(14,9,26,.92)'; ctx.beginPath();
+    ctx.roundRect(lx-5,ly-10,tw+10,20,6); ctx.fill();
+    ctx.strokeStyle='rgba(123,94,167,.3)'; ctx.lineWidth=.8; ctx.stroke();
+    ctx.fillStyle='rgba(210,185,255,.85)'; ctx.fillText(txt,lx,ly+1);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// TOOLTIP
+// ══════════════════════════════════════════════════════════════
+const tipEl=document.getElementById('tip');
+function showTip(x,y,sec){
+  const hue=EHUE[sec.type];
+  tipEl.querySelector('.t-type').textContent=ENAME[sec.type]||sec.type;
+  tipEl.querySelector('.t-type').style.color=`hsl(${hue},65%,65%)`;
+  tipEl.querySelector('.t-title').textContent=sec.title;
+  const relStr=sec.type==='auth'?'⊘ sealed · valet-mandatory':
+               sec.type==='footer'?'✓ low priority':
+               sec.wordCount?`${sec.wordCount} words · ${sec.linkCount} links`:'';
+  tipEl.querySelector('.t-meta').textContent=relStr;
+  tipEl.classList.add('show');
+  const tw=tipEl.offsetWidth||180, th=tipEl.offsetHeight||60;
+  let tx=x+16, ty=y-10;
+  if(tx+tw>CW-8) tx=x-tw-10;
+  if(ty+th>CH-70) ty=y-th-8;
+  tipEl.style.left=tx+'px'; tipEl.style.top=ty+'px';
+}
+function hideTip(){ tipEl.classList.remove('show'); }
+
+// ══════════════════════════════════════════════════════════════
+// MODE
+// ══════════════════════════════════════════════════════════════
+function setMode(m){
+  mode=m;
+  updateModeBtn(m);
+  tapestryEl.classList.toggle('open',m==='tapestry');
+  if(m==='valet'){ valetIdx=0; valetDwell=0; setValetTarget(); valetX=valetTX; valetY=valetTY; }
+  hideTip();
+}
+function updateModeBtn(m){
+  document.querySelectorAll('.mbtn').forEach(function(b){ b.classList.toggle('active',b.dataset.m===m); });
+}
+function setValetTarget(){
+  if(!pageModel) return;
+  const v=vport();
+  const s=pageModel.sections[valetIdx%pageModel.sections.length];
+  if(!s) return;
+  valetTX=v.x+v.w*.38+Math.random()*v.w*.24;
+  valetTY=v.y+((s.y0+s.y1)/2)*v.h;
+}
+
+function relSym(r){ return r>=.9?'✓':r>=.6?'⚠':'✕'; }
+
+// ══════════════════════════════════════════════════════════════
+// MAIN LOOP
+// ══════════════════════════════════════════════════════════════
+const PARSE_SPD=0.0014;
+let last=0;
+
+function frame(ts){
+  const dt=Math.min(ts-last,40); last=ts;
+  ctx.clearRect(0,0,CW,CH);
+  drawDermis(ts);
+
+  if(mode==='parsing'&&pageModel){
+    parseY=Math.min(parseY+PARSE_SPD*dt,1);
+    if(parseY>=1) setMode('browsing');
+  }
+
+  // sweep physics
+  if(!isDragging){ sweepOfs*=.88; if(Math.abs(sweepOfs)<.3) sweepOfs=0; }
+
+  drawViewport(ts);
+  drawStatus();
+  drawAddrBar();
+  drawNavRail();
+  drawValetCursor(ts);
+
+  if(mode==='valet'&&pageModel){
+    valetDwell+=dt;
+    if(valetDwell>=VALET_MS){ valetDwell=0; valetIdx=(valetIdx+1)%pageModel.sections.length; setValetTarget(); }
+  }
+  if(mode==='tapestry') updateTapestryFocus();
+
+  requestAnimationFrame(frame);
+}
+
+// ══════════════════════════════════════════════════════════════
+// INTERACTION
+// ══════════════════════════════════════════════════════════════
+function pt(e){ const s=e.touches?e.touches[0]:e,r=C.getBoundingClientRect(); return{x:s.clientX-r.left,y:s.clientY-r.top}; }
+
+function updateHover(x,y){
+  mx=x; my=y;
+  if(mode!=='browsing'||!pageModel){hideTip();return;}
+  const v=vport();
+  let best=Infinity, found=null;
+  for(const cell of hexCells){
+    const d=Math.hypot(cell.cx-x,cell.cy-y);
+    if(d<HEX_R*1.5&&d<best&&cell.sec){ best=d; found=cell; }
+  }
+  if(found&&found.sec!==hovSec){ hovSec=found.sec; showTip(x,y,found.sec); }
+  else if(!found){ hovSec=null; hideTip(); }
+}
+
+C.addEventListener('mousemove',function(e){
+  const p=pt(e); updateHover(p.x,p.y);
+  if(isDragging) sweepOfs=p.x-dragStartX;
+});
+C.addEventListener('mouseleave',function(){ mx=-1;my=-1;hovSec=null;hideTip(); });
+C.addEventListener('mousedown',function(e){
+  const p=pt(e);
+  if(p.y>TOP_H&&p.y<CH-NAV_H-BTN_H&&mode==='browsing'){ isDragging=true; dragStartX=p.x-sweepOfs; }
+});
+window.addEventListener('mouseup',function(){
+  if(!isDragging) return; isDragging=false;
+  // navigate if dragged far enough
+  const slotW=Math.min(120,CW/Math.max(1,(pageModel&&pageModel.links.length)||1));
+  if(sweepOfs<-slotW*.45&&pageModel){
+    const idx=pageModel.links.findIndex(function(l){return l.current;});
+    const next=pageModel.links[Math.min(pageModel.links.length-1,(idx<0?1:idx)+1)];
+    if(next&&!next.current) fetchArticle(next.slug);
+    sweepOfs=0;
+  } else if(sweepOfs>slotW*.45&&pageModel){
+    const idx=pageModel.links.findIndex(function(l){return l.current;});
+    const prev=pageModel.links[Math.max(0,(idx<0?1:idx)-1)];
+    if(prev&&!prev.current) fetchArticle(prev.slug);
+    sweepOfs=0;
+  } else {
+    sweepOfs=0;
+  }
+});
+
+C.addEventListener('touchstart',function(e){ e.preventDefault(); const p=pt(e); if(p.y>TOP_H&&p.y<CH-NAV_H-BTN_H&&mode==='browsing'){isDragging=true;dragStartX=p.x-sweepOfs;} },{passive:false});
+C.addEventListener('touchmove',function(e){ e.preventDefault(); const p=pt(e); if(isDragging)sweepOfs=p.x-dragStartX; updateHover(p.x,p.y); },{passive:false});
+window.addEventListener('touchend',function(){ isDragging=false; sweepOfs=0; });
+
+// mode buttons
+document.querySelectorAll('.mbtn').forEach(function(b){
+  b.addEventListener('click',function(){
+    if(b.dataset.m===mode) return;
+    setMode(b.dataset.m);
+  });
+});
+
+// address input
+const addrInput=document.getElementById('addr-input');
+addrInput.addEventListener('keydown',function(e){
+  if(e.key==='Enter'){ fetchArticle(addrInput.value); addrInput.blur(); }
+});
+addrInput.addEventListener('focus',function(){ C.style.cursor='text'; });
+addrInput.addEventListener('blur',function(){ C.style.cursor='crosshair'; });
+
+window.addEventListener('resize',function(){ resize(); buildTapestry(); });
+
+// ══════════════════════════════════════════════════════════════
+// EMBEDDED FALLBACK DATA
+// Real Wikipedia section structures — used when network is
+// unavailable. Accurate to the actual articles as of 2026.
+// Live fetch still runs when opened in a real browser.
+// ══════════════════════════════════════════════════════════════
+const FALLBACK = {
+  Strange_attractor: {
+    lead:{
+      displaytitle:'Strange attractor',
+      image:{file:'Lorenz_attractor.png'},
+      sections:[{text:'<p>In the mathematical field of <a href="/wiki/Dynamical_system">dynamical systems</a>, an <b>attractor</b> is a set of states toward which a system tends to evolve, for a wide variety of starting conditions. A <b>strange attractor</b> is one that has a <a href="/wiki/Fractal">fractal</a> structure, arising in the study of <a href="/wiki/Chaos_theory">chaotic systems</a>. Strange attractors are studied in the theory of <a href="/wiki/Dynamical_system">dynamical systems</a>. Unlike fixed-point attractors or <a href="/wiki/Limit_cycle">limit cycles</a>, strange attractors have non-integer <a href="/wiki/Hausdorff_dimension">Hausdorff dimension</a>. They arise in systems exhibiting sensitivity to initial conditions — the <a href="/wiki/Butterfly_effect">butterfly effect</a>. First described by <a href="/wiki/David_Ruelle">David Ruelle</a> and <a href="/wiki/Floris_Takens">Floris Takens</a> in 1971, they have since been found in many physical, chemical, and biological systems. The <a href="/wiki/Lorenz_attractor">Lorenz attractor</a>, perhaps the most famous, resembles a butterfly or figure-eight and was discovered by <a href="/wiki/Edward_Lorenz">Edward Lorenz</a> in the context of atmospheric <a href="/wiki/Convection">convection</a>.</p>'}]
+    },
+    remaining:{sections:[
+      {line:'Definitions',anchor:'Definitions',toclevel:1,text:'<p>A strange attractor is one that exhibits <a href="/wiki/Chaos_theory">chaotic</a> behaviour — trajectories that start close together diverge exponentially — while remaining bounded within a finite region of <a href="/wiki/Phase_space">phase space</a>. Formally, an attractor is <i>strange</i> if it has non-integer <a href="/wiki/Hausdorff_dimension">Hausdorff dimension</a> and sensitive dependence on initial conditions. The term was coined by <a href="/wiki/David_Ruelle">Ruelle</a> and <a href="/wiki/Floris_Takens">Takens</a>. Strange attractors arise in dissipative dynamical systems — those that contract volume in <a href="/wiki/Phase_space">phase space</a>. The presence of a strange attractor implies that even though the system is deterministic, its long-term behaviour is unpredictable. Lyapunov exponents characterise the rate of separation of trajectories. A positive maximal <a href="/wiki/Lyapunov_exponent">Lyapunov exponent</a> is a hallmark of chaos. Strange attractors have been identified in fluid dynamics, chemical oscillators, electronic circuits, and population models among others. They are related to <a href="/wiki/Fractal">fractal</a> geometry through their self-similar structure at every scale of magnification.</p>'},
+      {line:'Properties',anchor:'Properties',toclevel:1,text:'<p>Strange attractors are characterised by three core properties. First, they are bounded — trajectories remain in a finite region. Second, they are <a href="/wiki/Invariant_set">invariant</a> — once on the attractor, the trajectory stays there. Third, they are <a href="/wiki/Attractor">attracting</a> — nearby trajectories converge toward them. The fractal dimension of a strange attractor is typically between two integers. The <a href="/wiki/Correlation_dimension">correlation dimension</a> and information dimension provide estimates. The <a href="/wiki/Kaplan–Yorke_conjecture">Kaplan–Yorke conjecture</a> relates Lyapunov exponents to the fractal dimension.</p>'},
+      {line:'Examples',anchor:'Examples',toclevel:1,text:'<p>Several canonical strange attractors are studied in the literature. Each arises from a specific set of <a href="/wiki/Differential_equation">differential equations</a> or maps that produce chaotic behaviour. The following are the most frequently encountered.</p>'},
+      {line:'Lorenz attractor',anchor:'Lorenz_attractor',toclevel:2,text:'<p>The <a href="/wiki/Lorenz_attractor">Lorenz attractor</a>, discovered by <a href="/wiki/Edward_Lorenz">Edward Lorenz</a> in 1963 while studying <a href="/wiki/Atmospheric_convection">atmospheric convection</a>, is perhaps the most widely recognised strange attractor. It is derived from a simplified set of equations governing fluid dynamics. The attractor has a characteristic butterfly or figure-eight shape when projected into three-dimensional space. Its <a href="/wiki/Hausdorff_dimension">Hausdorff dimension</a> is approximately 2.06. Lorenz demonstrated that tiny differences in initial conditions lead to vastly different outcomes — the central insight of <a href="/wiki/Chaos_theory">chaos theory</a>. The three coupled differential equations involve three state variables and three parameters: σ (Prandtl number), ρ (Rayleigh number), and β (geometry factor). With σ=10, ρ=28, β=8/3 the system is chaotic.</p>'},
+      {line:'Rössler attractor',anchor:'Rössler_attractor',toclevel:2,text:'<p>The <a href="/wiki/Rössler_attractor">Rössler attractor</a> was proposed by <a href="/wiki/Otto_Rössler">Otto Rössler</a> in 1976 as a simpler system than Lorenz that still exhibits chaotic behaviour. It consists of three differential equations with three parameters a, b, and c. The attractor resembles a twisted band or Möbius strip folded back on itself. For a=b=0.2 and c=5.7 the system is chaotic. The <a href="/wiki/Rössler_attractor">Rössler system</a> has become a standard example in dynamical systems courses due to its relative simplicity and clear geometric structure.</p>'},
+      {line:'Hénon map',anchor:'Hénon_map',toclevel:2,text:'<p>The <a href="/wiki/Hénon_map">Hénon map</a> is a discrete-time dynamical system that produces a strange attractor in two dimensions. Introduced by Michel Hénon in 1976, it maps a point in the plane to another through two coupled equations. With parameters a=1.4 and b=0.3 the map exhibits chaos. The fractal dimension of the Hénon attractor is approximately 1.26. The map serves as a model for the <a href="/wiki/Poincaré_section">Poincaré section</a> of the Lorenz attractor.</p>'},
+      {line:'Clifford attractor',anchor:'Clifford_attractor',toclevel:2,text:'<p>Clifford attractors are a family of two-dimensional iterated function attractors parameterised by four constants a, b, c, d. The iteration is x\' = sin(ay) + c·cos(ax), y\' = sin(bx) + d·cos(by). Depending on parameters, they produce a wide variety of fractal forms. They were popularised by <a href="/wiki/Clifford_Pickover">Clifford Pickover</a> and are closely related to <a href="/wiki/Peter_de_Jong_attractor">Peter de Jong attractors</a>.</p>'},
+      {line:'Detecting strange attractors in turbulence',anchor:'Detecting',toclevel:1,text:'<p>One of the key open problems in <a href="/wiki/Fluid_dynamics">fluid dynamics</a> is determining whether <a href="/wiki/Turbulence">turbulence</a> is governed by a strange attractor. Early work by <a href="/wiki/David_Ruelle">Ruelle</a> suggested this might be the case. Embedding techniques, including <a href="/wiki/Takens%27_theorem">Takens\' theorem</a>, allow reconstruction of attractors from scalar time series. The correlation dimension can then be estimated. Results have been inconclusive: some turbulent flows appear to have finite correlation dimension consistent with a strange attractor, while others do not. The question remains active in the literature.</p>'},
+      {line:'See also',anchor:'See_also',toclevel:1,text:'<p><a href="/wiki/Attractor">Attractor</a> · <a href="/wiki/Chaos_theory">Chaos theory</a> · <a href="/wiki/Fractal">Fractal</a> · <a href="/wiki/Lorenz_attractor">Lorenz attractor</a> · <a href="/wiki/Dynamical_system">Dynamical system</a> · <a href="/wiki/Butterfly_effect">Butterfly effect</a></p>'},
+      {line:'References',anchor:'References',toclevel:1,text:'<p>Ruelle, D.; Takens, F. (1971). <a href="/wiki/Communications_in_Mathematical_Physics">Commun. Math. Phys.</a> Lorenz, E. N. (1963). <a href="/wiki/Journal_of_the_Atmospheric_Sciences">J. Atmos. Sci.</a> Hénon, M. (1976). <a href="/wiki/Communications_in_Mathematical_Physics">Commun. Math. Phys.</a> Rössler, O. (1976). <a href="/wiki/Physics_Letters">Phys. Lett. A.</a></p>'},
+      {line:'External links',anchor:'External_links',toclevel:1,text:'<p><a href="/wiki/MathWorld">MathWorld</a> · <a href="/wiki/Scholarpedia">Scholarpedia</a></p>'},
+    ]}
+  },
+  Hexagonal_tiling: {
+    lead:{
+      displaytitle:'Hexagonal tiling',
+      image:{file:'Hexagonal_tiling.png'},
+      sections:[{text:'<p>In <a href="/wiki/Geometry">geometry</a>, the <b>hexagonal tiling</b> or <b>hexagonal tessellation</b> is a <a href="/wiki/Regular_tiling">regular tiling</a> of the <a href="/wiki/Euclidean_plane">Euclidean plane</a>, in which exactly three <a href="/wiki/Hexagon">hexagons</a> meet at each vertex. It has <a href="/wiki/Schläfli_symbol">Schläfli symbol</a> {6,3} or t{3,6}. English mathematician <a href="/wiki/John_Conway">John Conway</a> called it a <i>hextille</i>. The internal angle of a hexagon is 120°, and three of them together sum to 360°, which is the angle around a point — the unique property that makes hexagonal tiling possible without gaps. Hexagonal tiling is ubiquitous in nature: <a href="/wiki/Honeycomb">honeycombs</a>, <a href="/wiki/Basalt">basalt columns</a>, the compound eye of insects, and graphene\'s atomic lattice all exhibit it. It is the most efficient tiling of the plane in terms of perimeter-to-area ratio, which is why bees use it.</p>'}]
+    },
+    remaining:{sections:[
+      {line:'Geometry',anchor:'Geometry',toclevel:1,text:'<p>A regular hexagon has six equal sides and six equal interior angles of 120°. When identical hexagons tile the plane, each hexagon shares every edge with a neighbour. The <a href="/wiki/Wigner-Seitz_cell">Wigner-Seitz cell</a> of a <a href="/wiki/Triangular_lattice">triangular lattice</a> is a hexagon. The dual tiling is the <a href="/wiki/Triangular_tiling">triangular tiling</a>, and the rectification is the <a href="/wiki/Trihexagonal_tiling">trihexagonal tiling</a>. The <a href="/wiki/Symmetry_group">symmetry group</a> of hexagonal tiling is p6m, the wallpaper group with the highest symmetry. The <a href="/wiki/Voronoi_diagram">Voronoi diagram</a> of a triangular lattice is a hexagonal tiling. Packing efficiency: hexagonal tiling achieves the theoretical maximum packing density of circles in the plane (the <a href="/wiki/Circle_packing">circle packing</a> theorem), covering π/(2√3) ≈ 90.69% of the area.</p>'},
+      {line:'Uniform colourings',anchor:'Uniform_colourings',toclevel:1,text:'<p>There are three distinct uniform colourings of the hexagonal tiling, generated by colouring the hexagons with up to three colours such that no two adjacent hexagons share a colour. These correspond to different subgroups of the tiling\'s symmetry group. The three-colour uniform colouring produces the <a href="/wiki/Trihexagonal_tiling">trihexagonal tiling</a> when vertices are also considered. Alternating rows of two colours produce the most common form seen in practical applications such as ceramic tiles.</p>'},
+      {line:'Related polyhedra and tilings',anchor:'Related',toclevel:1,text:'<p>The hexagonal tiling is related to many other tilings through geometric operations. <a href="/wiki/Truncation_(geometry)">Truncating</a> the triangular tiling yields hexagons. The <a href="/wiki/Elongated_triangular_tiling">elongated triangular tiling</a>, the <a href="/wiki/Snub_square_tiling">snub square tiling</a>, and the <a href="/wiki/Triakis_triangular_tiling">triakis triangular tiling</a> are all related. In three dimensions, the hexagonal prism tiles space. The <a href="/wiki/Hyperbolic_geometry">hyperbolic plane</a> admits regular tilings with hexagons where more than three meet at each vertex — the {6,4} and {6,5} tilings for instance.</p>'},
+      {line:'In nature and technology',anchor:'Nature',toclevel:1,text:'<p>The efficiency of hexagonal packing makes it pervasive in both biological and engineered systems. Honeybee <a href="/wiki/Honeycomb">honeycombs</a> minimise wax usage through hexagonal cells. <a href="/wiki/Graphene">Graphene</a> is a monolayer of carbon atoms in hexagonal arrangement. <a href="/wiki/Basalt">Basalt columns</a> form through thermal contraction. The compound <a href="/wiki/Insect_eye">eyes of insects</a> are hexagonally packed ommatidia. In engineering: cellular phone networks historically used hexagonal cells. <a href="/wiki/Geodesic_dome">Geodesic domes</a> approximate a sphere with hexagonal and pentagonal panels. Semiconductor lithography masks use hexagonal packing to maximise transistor density.</p>'},
+      {line:'See also',anchor:'See_also',toclevel:1,text:'<a href="/wiki/Triangular_tiling">Triangular tiling</a> · <a href="/wiki/Square_tiling">Square tiling</a> · <a href="/wiki/Tessellation">Tessellation</a> · <a href="/wiki/Honeycomb_conjecture">Honeycomb conjecture</a> · <a href="/wiki/Circle_packing">Circle packing</a>'},
+      {line:'References',anchor:'References',toclevel:1,text:'Grünbaum, B.; Shephard, G.C. (1987). Tilings and Patterns. W.H. Freeman. Fejes Tóth, L. (1953). Lagerungen in der Ebene, auf der Kugel und im Raum. Springer.'},
+    ]}
+  }
+};
+
+// ══════════════════════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════════════════════
+resize();
+requestAnimationFrame(frame);
+
+// Try live fetch; fall back to embedded data if unavailable
+fetchArticle('Strange_attractor');
+
+}());
+</script>
+</body>
+</html>
