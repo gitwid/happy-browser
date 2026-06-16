@@ -6,3 +6,9 @@ safari/**/xcuserdata/
 *.xcuserstate
 safari/build/
 *.tar.gz
+happy-labs/.build/
+happy-labs/**/xcuserdata/
+happy-labs/**/*.xcuserstate
+happy-labs/**/DerivedData/
+happy-labs/**/.build/
+happy-labs/[Gmail]/
