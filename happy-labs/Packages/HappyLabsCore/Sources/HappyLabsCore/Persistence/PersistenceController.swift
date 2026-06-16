@@ -1,0 +1,285 @@
+import CoreData
+import Foundation
+
+public final class PersistenceController: @unchecked Sendable {
+    public static let shared = PersistenceController()
+
+    public let container: NSPersistentContainer
+
+    public init(inMemory: Bool = false) {
+        let model = HappyLabsModel.makeModel()
+        container = NSPersistentContainer(name: HappyLabsModel.modelName, managedObjectModel: model)
+
+        if inMemory {
+            let description = NSPersistentStoreDescription()
+            description.type = NSInMemoryStoreType
+            container.persistentStoreDescriptions = [description]
+        } else {
+            let storeURL = Self.defaultStoreURL()
+            let description = NSPersistentStoreDescription(url: storeURL)
+            description.cloudKitContainerOptions = nil
+            description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+            container.persistentStoreDescriptions = [description]
+        }
+
+        container.loadPersistentStores { _, error in
+            if let error {
+                fatalError("Happy Labs store failed: \(error)")
+            }
+        }
+
+        container.viewContext.automaticallyMergesChangesFromParent = true
+        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+    }
+
+    public static func defaultStoreURL() -> URL {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let folder = support.appendingPathComponent("HappyLabs", isDirectory: true)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder.appendingPathComponent("HappyLabs.sqlite")
+    }
+
+    public func newBackgroundContext() -> NSManagedObjectContext {
+        let context = container.newBackgroundContext()
+        context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        return context
+    }
+
+    public func save(_ context: NSManagedObjectContext) throws {
+        if context.hasChanges {
+            try context.save()
+        }
+    }
+}
+
+public struct EntityRepository {
+    public let context: NSManagedObjectContext
+
+    public init(context: NSManagedObjectContext) {
+        self.context = context
+    }
+
+    public func insertMboxImport(
+        fileDisplayName: String,
+        fileBookmarkData: Data?,
+        messageCount: Int32,
+        provenance: ProvenanceFields
+    ) -> MboxImportEntity {
+        let entity = MboxImportEntity(context: context)
+        entity.apply(provenance)
+        entity.importedAt = Date()
+        entity.fileDisplayName = fileDisplayName
+        entity.fileBookmarkData = fileBookmarkData
+        entity.messageCount = messageCount
+        return entity
+    }
+
+    public func insertRawEmail(
+        message: ParsedEmail,
+        mboxImportID: UUID,
+        provenance: ProvenanceFields
+    ) -> RawEmailEntity {
+        let entity = RawEmailEntity(context: context)
+        entity.apply(provenance)
+        entity.messageID = message.messageID
+        entity.inReplyTo = message.inReplyTo
+        entity.referencesHeader = message.references
+        entity.subject = message.subject
+        entity.fromAddress = message.from
+        entity.toAddresses = message.to.joined(separator: ", ")
+        entity.dateSent = message.date
+        entity.bodyPlain = message.bodyPlain
+        entity.bodyHTML = message.bodyHTML
+        entity.mboxImportID = mboxImportID
+        return entity
+    }
+
+    public func insertEmailThread(
+        normalizedSubject: String,
+        participantSummary: String,
+        earliestDate: Date?,
+        latestDate: Date?,
+        rawEmailIDs: [UUID],
+        isOrphan: Bool,
+        provenance: ProvenanceFields
+    ) -> EmailThreadEntity {
+        let entity = EmailThreadEntity(context: context)
+        entity.apply(provenance)
+        entity.normalizedSubject = normalizedSubject
+        entity.participantSummary = participantSummary
+        entity.earliestDate = earliestDate
+        entity.latestDate = latestDate
+        entity.rawEmailIDs = rawEmailIDs
+        entity.isOrphan = isOrphan
+        return entity
+    }
+
+    public func insertStoryCandidate(
+        title: String,
+        summary: String,
+        keyQuotes: [String],
+        emailThreadID: UUID,
+        modelUsed: String,
+        provenance: ProvenanceFields
+    ) -> StoryCandidateEntity {
+        let entity = StoryCandidateEntity(context: context)
+        entity.apply(provenance)
+        entity.title = title
+        entity.summary = summary
+        entity.keyQuotes = keyQuotes
+        entity.emailThreadID = emailThreadID
+        entity.modelUsed = modelUsed
+        return entity
+    }
+
+    public func insertJournalEntry(
+        title: String,
+        bodyMarkdown: String,
+        tags: [String],
+        status: JournalEntryStatus,
+        storyCandidateID: UUID,
+        provenance: ProvenanceFields
+    ) -> JournalEntryEntity {
+        let entity = JournalEntryEntity(context: context)
+        entity.apply(provenance)
+        entity.title = title
+        entity.bodyMarkdown = bodyMarkdown
+        entity.tags = tags
+        entity.entryStatus = status
+        entity.storyCandidateID = storyCandidateID
+        return entity
+    }
+
+    public func insertTransformationLog(
+        codecName: String,
+        codecVersion: String,
+        inputEntityIDs: [UUID],
+        outputEntityIDs: [UUID],
+        inputHash: String,
+        outputHash: String,
+        durationMs: Double,
+        modelUsed: String?,
+        sourceClass: SourceClass,
+        originRef: UUID
+    ) -> TransformationLogEntity {
+        let fingerprint = ContentFingerprint.hash(codecName, codecVersion, inputHash, outputHash)
+        let provenance = ProvenanceFields(
+            originRef: originRef,
+            sourceClass: sourceClass,
+            contentFingerprint: fingerprint
+        )
+        let entity = TransformationLogEntity(context: context)
+        entity.apply(provenance)
+        entity.codecName = codecName
+        entity.codecVersion = codecVersion
+        entity.inputEntityIDs = inputEntityIDs
+        entity.outputEntityIDs = outputEntityIDs
+        entity.inputHash = inputHash
+        entity.outputHash = outputHash
+        entity.durationMs = durationMs
+        entity.modelUsed = modelUsed
+        entity.loggedAt = Date()
+        return entity
+    }
+
+    public func insertHumanDecision(
+        journalEntryID: UUID,
+        action: HumanDecisionAction,
+        editedTitle: String?,
+        editedBodyMarkdown: String?,
+        provenance: ProvenanceFields
+    ) -> HumanDecisionEntity {
+        let entity = HumanDecisionEntity(context: context)
+        entity.apply(provenance)
+        entity.journalEntryID = journalEntryID
+        entity.decisionAction = action
+        entity.editedTitle = editedTitle
+        entity.editedBodyMarkdown = editedBodyMarkdown
+        entity.decidedAt = Date()
+        return entity
+    }
+
+    public func insertDiscardedArtifact(
+        journalEntryID: UUID,
+        storyCandidateID: UUID,
+        reason: String?,
+        provenance: ProvenanceFields
+    ) -> DiscardedArtifactEntity {
+        let entity = DiscardedArtifactEntity(context: context)
+        entity.apply(provenance)
+        entity.journalEntryID = journalEntryID
+        entity.storyCandidateID = storyCandidateID
+        entity.discardedAt = Date()
+        entity.reason = reason
+        return entity
+    }
+
+    public func fetchRawEmails(mboxImportID: UUID) throws -> [RawEmailEntity] {
+        let request = NSFetchRequest<RawEmailEntity>(entityName: "RawEmailEntity")
+        request.predicate = NSPredicate(format: "mboxImportID == %@", mboxImportID as CVarArg)
+        request.sortDescriptors = [NSSortDescriptor(key: "dateSent", ascending: true)]
+        return try context.fetch(request)
+    }
+
+    public func fetchEmailThreads() throws -> [EmailThreadEntity] {
+        let request = NSFetchRequest<EmailThreadEntity>(entityName: "EmailThreadEntity")
+        request.sortDescriptors = [NSSortDescriptor(key: "latestDate", ascending: false)]
+        return try context.fetch(request)
+    }
+
+    public func fetchJournalEntries(status: JournalEntryStatus? = nil) throws -> [JournalEntryEntity] {
+        let request = NSFetchRequest<JournalEntryEntity>(entityName: "JournalEntryEntity")
+        if let status {
+            request.predicate = NSPredicate(format: "status == %@", status.rawValue)
+        }
+        request.sortDescriptors = [NSSortDescriptor(key: "archivedAt", ascending: false)]
+        return try context.fetch(request)
+    }
+
+    public func fetchTransformationLogs() throws -> [TransformationLogEntity] {
+        let request = NSFetchRequest<TransformationLogEntity>(entityName: "TransformationLogEntity")
+        request.sortDescriptors = [NSSortDescriptor(key: "loggedAt", ascending: true)]
+        return try context.fetch(request)
+    }
+
+    public func fetchMboxImport(id: UUID) throws -> MboxImportEntity? {
+        let request = NSFetchRequest<MboxImportEntity>(entityName: "MboxImportEntity")
+        request.predicate = NSPredicate(format: "provenanceID == %@", id as CVarArg)
+        request.fetchLimit = 1
+        return try context.fetch(request).first
+    }
+
+    public func fetchHumanDecisions(journalEntryID: UUID) throws -> [HumanDecisionEntity] {
+        try fetchHumanDecisions(journalEntryIDs: [journalEntryID])
+    }
+
+    public func fetchHumanDecisions(journalEntryIDs: [UUID]) throws -> [HumanDecisionEntity] {
+        guard !journalEntryIDs.isEmpty else { return [] }
+        let allowed = Set(journalEntryIDs)
+        let request = NSFetchRequest<HumanDecisionEntity>(entityName: "HumanDecisionEntity")
+        request.sortDescriptors = [NSSortDescriptor(key: "decidedAt", ascending: true)]
+        return try context.fetch(request).filter { allowed.contains($0.journalEntryID) }
+    }
+
+    public func allEntitiesHaveUserHeldSourceClass() throws -> Bool {
+        let entityNames = [
+            "MboxImportEntity",
+            "RawEmailEntity",
+            "EmailThreadEntity",
+            "StoryCandidateEntity",
+            "JournalEntryEntity",
+            "TransformationLogEntity",
+            "HumanDecisionEntity",
+            "DiscardedArtifactEntity"
+        ]
+        for name in entityNames {
+            let request = NSFetchRequest<NSManagedObject>(entityName: name)
+            request.predicate = NSPredicate(format: "sourceClassRaw != %@", SourceClass.userHeld.rawValue)
+            request.fetchLimit = 1
+            if try context.count(for: request) > 0 {
+                return false
+            }
+        }
+        return true
+    }
+}
