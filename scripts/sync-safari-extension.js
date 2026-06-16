@@ -4,6 +4,8 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const sourceDir = path.join(root, "src");
 const sourceManifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "utf8"));
+const devMode = process.env.HAPPY_BROWSER_DEV === "1";
+const manifestName = devMode ? "Happy Browser Dev" : "Happy Browser";
 const targets = [
   {
     label: "Safari extension staging",
@@ -30,9 +32,10 @@ for (const target of targets) {
   }
 
   const targetManifest = JSON.parse(fs.readFileSync(target.manifest, "utf8"));
+  targetManifest.name = manifestName;
   targetManifest.version = sourceManifest.version;
   targetManifest.description = sourceManifest.description;
   targetManifest.content_scripts = sourceManifest.content_scripts;
   fs.writeFileSync(target.manifest, `${JSON.stringify(targetManifest, null, 2)}\n`);
-  console.log(`Synced ${target.label} to ${path.relative(root, target.srcDir)}`);
+  console.log(`Synced ${target.label} to ${path.relative(root, target.srcDir)} (${manifestName})`);
 }
