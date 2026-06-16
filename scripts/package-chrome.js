@@ -17,25 +17,20 @@ const entries = [
   "PRIVACY.md"
 ];
 
-const srcEntries = [
-  "content.css",
-  "content.js",
-  "navigation-scoring.js",
-  "options.css",
-  "options.html",
-  "options.js"
-];
-
 fs.rmSync(packageDir, { recursive: true, force: true });
 fs.mkdirSync(packageDir, { recursive: true });
+fs.mkdirSync(path.join(packageDir, "src"), { recursive: true });
 fs.mkdirSync(distDir, { recursive: true });
 
 for (const entry of entries) {
   copyRecursive(path.join(root, entry), path.join(packageDir, entry));
 }
 
-for (const entry of srcEntries) {
-  copyRecursive(path.join(sourceDir, entry), path.join(packageDir, "src", entry));
+for (const entry of fs.readdirSync(sourceDir)) {
+  const source = path.join(sourceDir, entry);
+  if (fs.statSync(source).isFile()) {
+    fs.copyFileSync(source, path.join(packageDir, "src", entry));
+  }
 }
 
 fs.rmSync(zipPath, { force: true });
