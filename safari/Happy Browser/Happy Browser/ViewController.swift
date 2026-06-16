@@ -15,7 +15,11 @@ class ViewController: NSViewController, WKNavigationDelegate, WKScriptMessageHan
 
     private var extensionBundleIdentifier: String {
         guard let bundleIdentifier = Bundle.main.bundleIdentifier else {
+            #if DEBUG
+            return "com.gitwid.happybrowser.dev.Extension"
+            #else
             return "com.gitwid.happybrowser.Extension"
+            #endif
         }
 
         return "\(bundleIdentifier).Extension"

@@ -2,6 +2,7 @@
 node_modules/
 dist/
 safari/DerivedData/
+safari/DerivedData-Release/
 safari/**/xcuserdata/
 *.xcuserstate
 safari/build/

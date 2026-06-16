@@ -43,11 +43,13 @@ Run tests:
 npm test
 ```
 
-Sync the Safari extension resources:
+Sync the Safari extension resources manually when needed outside Xcode:
 
 ```sh
 npm run safari:sync
 ```
+
+Xcode Debug builds run this automatically via a **Sync Extension Resources** build phase.
 
 Package the Chrome extension:
 
@@ -64,9 +66,19 @@ The Chrome ZIP is written to `dist/`.
 3. Choose **Load unpacked**.
 4. Select this project folder.
 
+See [docs/safari-dev-workflow.md](docs/safari-dev-workflow.md) for Chrome vs Safari Dev vs TestFlight workflows.
+
 ## Loading In Safari
 
-The Safari version lives in `safari/Happy Browser`. Build and run the containing app in Xcode, then enable the extension in Safari Extensions preferences.
+The Safari version lives in `safari/Happy Browser`.
+
+1. Open `safari/Happy Browser/Happy Browser.xcodeproj` in Xcode.
+2. Select the shared scheme **Happy Browser** and destination **My Mac**.
+3. **⌘R** (Debug) installs **Happy Browser Dev** and registers **Happy Browser Dev Extension**.
+4. Enable unsigned extensions in Safari → Develop → **Allow Unsigned Extensions**.
+5. Enable the extension in Safari → Settings → Extensions.
+
+Release/Archive builds keep the production identity **Happy Browser**.
 
 For unsigned development builds, Safari's unsigned extension support must be enabled from Safari's developer settings.
 

@@ -174,6 +174,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 567F03142FC169B500EB2BCD /* Build configuration list for PBXNativeTarget "Happy Browser Extension" */;
 			buildPhases = (
+				567F03222FC16AA00EB2BCD /* Sync Extension Resources */,
 				567F03062FC169B500EB2BCD /* Sources */,
 				567F03072FC169B500EB2BCD /* Frameworks */,
 				567F03082FC169B500EB2BCD /* Resources */,
@@ -252,6 +253,34 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		567F03222FC16AA00EB2BCD /* Sync Extension Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../../manifest.json",
+				"$(SRCROOT)/../../scripts/sync-safari-extension.js",
+				"$(SRCROOT)/../../scripts/xcode-sync-safari-extension.sh",
+				"$(SRCROOT)/../../src",
+			);
+			name = "Sync Extension Resources";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Happy Browser Extension/Resources/manifest.json",
+				"$(SRCROOT)/Happy Browser Extension/Resources/src",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/../../scripts/xcode-sync-safari-extension.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		567F02EB2FC169B300EB2BCD /* Sources */ = {
@@ -338,7 +367,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -401,7 +430,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -441,7 +470,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Happy Browser Extension/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Happy Browser Extension";
+				INFOPLIST_KEY_CFBundleDisplayName = "Happy Browser Dev Extension";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "2026 Happy Browser";
@@ -456,7 +485,7 @@
 					"-framework",
 					SafariServices,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.gitwid.happybrowser.Extension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gitwid.happybrowser.dev.Extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -540,7 +569,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Happy Browser/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Happy Browser";
+				INFOPLIST_KEY_CFBundleDisplayName = "Happy Browser Dev";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -557,8 +586,8 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.gitwid.happybrowser;
-				PRODUCT_NAME = "Happy Browser";
+				PRODUCT_BUNDLE_IDENTIFIER = com.gitwid.happybrowser.dev;
+				PRODUCT_NAME = "Happy Browser Dev";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
