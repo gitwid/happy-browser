@@ -31,6 +31,8 @@ for (const target of targets) {
 
   const targetManifest = JSON.parse(fs.readFileSync(target.manifest, "utf8"));
   targetManifest.version = sourceManifest.version;
+  targetManifest.description = sourceManifest.description;
+  targetManifest.content_scripts = sourceManifest.content_scripts;
   fs.writeFileSync(target.manifest, `${JSON.stringify(targetManifest, null, 2)}\n`);
   console.log(`Synced ${target.label} to ${path.relative(root, target.srcDir)}`);
 }

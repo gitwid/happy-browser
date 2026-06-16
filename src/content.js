@@ -141,7 +141,8 @@
     }
 
     #happy-browser-rail[data-happy-enabled="false"] .happy-browser-button,
-    #happy-browser-rail[data-happy-enabled="false"] .happy-browser-status {
+    #happy-browser-rail[data-happy-enabled="false"] .happy-browser-status,
+    #happy-browser-rail[data-happy-enabled="false"] .happy-browser-inspector {
       display: none;
     }
 
@@ -167,6 +168,11 @@
 
     #happy-browser-rail[data-state="tentative"] .happy-browser-button {
       border-color: rgba(255, 202, 98, 0.7);
+    }
+
+    #happy-browser-rail[data-state="scroll"] .happy-browser-button {
+      border-color: rgba(136, 190, 218, 0.72);
+      opacity: 0.58;
     }
 
     #happy-browser-rail[data-state="happy"] .happy-browser-button {
@@ -199,6 +205,63 @@
       transform: translateX(-50%) translateY(8px);
       transition: opacity 160ms ease, transform 160ms ease;
       backdrop-filter: blur(16px);
+    }
+
+    .happy-browser-inspector {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      width: min(360px, calc(100vw - 32px));
+      max-height: min(420px, calc(100vh - 32px));
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 8px;
+      background: rgba(18, 24, 28, 0.82);
+      color: #f8fbff;
+      font-size: 11px;
+      line-height: 1.35;
+      opacity: 0;
+      overflow: auto;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity 160ms ease, transform 160ms ease;
+      backdrop-filter: blur(18px);
+    }
+
+    #happy-browser-rail[data-debug="true"] .happy-browser-inspector {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .happy-browser-inspector h2 {
+      margin: 0 0 8px;
+      font-size: 12px;
+      line-height: 1.2;
+    }
+
+    .happy-browser-inspector dl {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 4px 8px;
+      margin: 0;
+    }
+
+    .happy-browser-inspector dt {
+      color: rgba(248, 251, 255, 0.62);
+      font-weight: 650;
+    }
+
+    .happy-browser-inspector dd {
+      min-width: 0;
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .happy-browser-inspector code {
+      color: #b7f7d7;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10px;
     }
 
     #happy-browser-rail[data-show-status="true"] .happy-browser-status {
@@ -240,6 +303,7 @@
       state.railEnabled = Boolean(settings.railEnabled);
       state.happyEnabled = Boolean(settings.happyEnabled);
       applyHappyEnabledState();
+      applyDebugState();
       applyRailEnabledState();
     });
   }
@@ -286,8 +350,12 @@
     const status = document.createElement("div");
     status.className = "happy-browser-status";
     status.textContent = "Scanning";
+    const inspector = document.createElement("section");
+    inspector.className = "happy-browser-inspector";
+    inspector.setAttribute("aria-label", "Happy Browser local inspection");
+    inspector.innerHTML = "<h2>Local inspection</h2><dl><dt>State</dt><dd>Scanning</dd></dl>";
 
-    rail.append(previous, next, toggle, version, status);
+    rail.append(previous, next, toggle, version, status, inspector);
     shadow.append(style, rail);
     document.documentElement.appendChild(host);
     state.railHost = host;
@@ -295,6 +363,7 @@
     applyRailPosition();
     applyTogglePosition();
     applyHappyEnabledState();
+    applyDebugState();
     applyRailEnabledState();
   }
 
@@ -326,7 +395,7 @@
     } catch (error) {
       // Safari can be conservative about extension APIs during early injection.
     }
-    return "v0.1.2";
+    return "v0.2.5";
   }
 
   function makeRailButton(direction, text, label) {
@@ -507,6 +576,29 @@
     document.addEventListener("scroll", () => scheduleAnalyze(120), true);
     window.addEventListener("popstate", () => scheduleAnalyze(120));
     window.addEventListener("hashchange", () => scheduleAnalyze(120));
+    if (chrome.storage && chrome.storage.onChanged) {
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName !== "sync") {
+          return;
+        }
+
+        if (changes.debug) {
+          state.debug = Boolean(changes.debug.newValue);
+          applyDebugState();
+          updateInspector();
+        }
+
+        if (changes.happyEnabled) {
+          state.happyEnabled = Boolean(changes.happyEnabled.newValue);
+          applyHappyEnabledState();
+        }
+
+        if (changes.railEnabled) {
+          state.railEnabled = Boolean(changes.railEnabled.newValue);
+          applyRailEnabledState();
+        }
+      });
+    }
 
     const observer = new MutationObserver(() => {
       ensureRailAttached();
@@ -585,6 +677,12 @@
   function applyHappyEnabledState() {
     if (state.rail) {
       state.rail.dataset.happyEnabled = String(state.happyEnabled);
+    }
+  }
+
+  function applyDebugState() {
+    if (state.rail) {
+      state.rail.dataset.debug = String(state.debug);
     }
   }
 
@@ -667,6 +765,7 @@
     const visualState = getVisualState();
     const label = getVisualStateLabel(visualState);
     setRailState(visualState, label);
+    updateInspector();
 
     if (state.debug) {
       console.debug("[Happy Browser] analysis", state.analysis);
@@ -842,14 +941,18 @@
 
   function getStateLabel(nextState) {
     if (nextState === "happy") {
-      return "Happy";
+      return "Reliable target";
     }
 
     if (nextState === "tentative") {
-      return "Tentative";
+      return "Tentative target";
     }
 
-    return "No path";
+    if (nextState === "scroll") {
+      return "Scroll fallback";
+    }
+
+    return "No reliable target";
   }
 
   function getVisualState() {
@@ -858,22 +961,97 @@
     }
 
     if (canScrollPage("next") || canScrollPage("previous")) {
-      return canScrollPage("next") ? "tentative" : "end";
+      return canScrollPage("next") ? "scroll" : "end";
     }
 
     return "end";
   }
 
   function getVisualStateLabel(visualState) {
-    if (visualState === "tentative" && state.analysis && state.analysis.state === "none") {
-      return "Scroll ready";
-    }
-
     if (visualState === "end") {
       return "End reached";
     }
 
     return getStateLabel(visualState);
+  }
+
+  function updateInspector() {
+    if (!state.rail || !state.debug) {
+      return;
+    }
+
+    const inspector = state.rail.querySelector(".happy-browser-inspector");
+    if (!inspector) {
+      return;
+    }
+
+    const analysis = state.analysis;
+    const next = analysis && analysis.directions.next;
+    const previous = analysis && analysis.directions.previous;
+    const visualState = getVisualState();
+    const nextBest = next && next.best;
+    const previousBest = previous && previous.best;
+
+    inspector.innerHTML = [
+      "<h2>Local inspection</h2>",
+      "<dl>",
+      inspectionRow("State", getVisualStateLabel(visualState)),
+      inspectionRow("Analysis", analysis ? analysis.state : "scanning"),
+      inspectionRow("Next", formatCandidate(nextBest, next && next.confidence)),
+      inspectionRow("Previous", formatCandidate(previousBest, previous && previous.confidence)),
+      inspectionRow("Fallback", formatScrollFallback()),
+      "</dl>"
+    ].join("");
+  }
+
+  function inspectionRow(label, value) {
+    return `<dt>${escapeHtml(label)}</dt><dd>${value}</dd>`;
+  }
+
+  function formatCandidate(candidate, confidence) {
+    if (!candidate) {
+      return "none";
+    }
+
+    const target = candidate.href || candidate.selector || candidate.text || "unknown";
+    const reasons = (candidate.reason || []).slice(0, 4).join(", ");
+    const pieces = [
+      escapeHtml(`${confidence || candidate.confidence} ${candidate.type}`),
+      `<code>${escapeHtml(target)}</code>`
+    ];
+
+    if (reasons) {
+      pieces.push(escapeHtml(reasons));
+    }
+
+    return pieces.join("<br>");
+  }
+
+  function formatScrollFallback() {
+    const nextScroll = getBestScrollableTarget("next");
+    const previousScroll = getBestScrollableTarget("previous");
+
+    if (nextScroll && previousScroll) {
+      return "page can scroll forward and back";
+    }
+
+    if (nextScroll) {
+      return "page can scroll forward";
+    }
+
+    if (previousScroll) {
+      return "page can scroll back";
+    }
+
+    return "none";
+  }
+
+  function escapeHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
   function canScrollPage(direction) {
