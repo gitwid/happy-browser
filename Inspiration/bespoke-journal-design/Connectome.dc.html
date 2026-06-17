@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&display=swap" rel="stylesheet">
+  <style>
+    *{ box-sizing:border-box; }
+    html,body{ margin:0; padding:0; }
+    body{ background:#E7E5DE; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+    ::selection{ background:rgba(28,27,22,0.12); }
+    @keyframes hl-breathe{ 0%,100%{ opacity:0.5; } 50%{ opacity:1; } }
+    .hl-app::-webkit-scrollbar{ width:0; height:0; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; background:radial-gradient(140% 100% at 50% 0%, #ECEAE3 0%, #E1DFD7 70%, #D8D6CD 100%); display:flex; align-items:center; justify-content:center; padding:40px 20px; font-family:-apple-system, system-ui, 'Helvetica Neue', Arial, sans-serif;">
+
+  <!-- ===== PHONE ===== -->
+  <div data-screen-label="HappyLabs Connectome" style="position:relative; width:390px; height:844px; border-radius:52px; background:#F6F4EE; box-shadow:0 2px 2px rgba(255,255,255,0.6) inset, 0 0 0 2px #1C1B16, 0 0 0 13px #26251F, 0 0 0 14px #34322B, 0 44px 90px -34px rgba(30,30,28,0.6), 0 18px 40px -28px rgba(30,30,28,0.5); overflow:hidden;">
+
+    <!-- status bar -->
+    <div style="position:absolute; top:0; left:0; right:0; height:54px; display:flex; align-items:flex-end; justify-content:space-between; padding:0 30px 8px; z-index:40; pointer-events:none;">
+      <span style="font-size:15px; font-weight:600; letter-spacing:0.01em; color:#1C1B16;">9:41</span>
+      <span style="display:flex; align-items:center; gap:6px;">
+        <span style="display:flex; align-items:flex-end; gap:2px; height:11px;">
+          <span style="width:3px; height:5px; background:#1C1B16; border-radius:1px;"></span>
+          <span style="width:3px; height:7px; background:#1C1B16; border-radius:1px;"></span>
+          <span style="width:3px; height:9px; background:#1C1B16; border-radius:1px;"></span>
+          <span style="width:3px; height:11px; background:#1C1B16; border-radius:1px;"></span>
+        </span>
+        <span style="width:24px; height:12px; border:1px solid rgba(28,27,22,0.5); border-radius:3px; position:relative; display:inline-block;"><span style="position:absolute; inset:1.5px; right:6px; background:#1C1B16; border-radius:1px;"></span></span>
+      </span>
+    </div>
+
+    <!-- notch -->
+    <div style="position:absolute; top:13px; left:50%; transform:translateX(-50%); width:120px; height:32px; background:#1C1B16; border-radius:20px; z-index:45;"></div>
+
+    <!-- APP -->
+    <div class="hl-app" style="position:absolute; top:54px; left:0; right:0; bottom:0; overflow-y:auto; overflow-x:hidden;">
+
+      <!-- ============ MAP ============ -->
+      <sc-if value="{{ isMap }}" hint-placeholder-val="{{ true }}">
+      <div style="position:relative; min-height:100%; padding-bottom:30px;">
+
+        <!-- header -->
+        <div style="padding:14px 26px 6px;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:10.5px; letter-spacing:0.26em; color:#9A9486; font-weight:600;">HAPPYLABS</span>
+            <span style="display:flex; align-items:center; gap:7px; font-size:9px; letter-spacing:0.18em; color:#B0AC9F; font-weight:600;">
+              <span style="width:5px; height:5px; border-radius:50%; background:{{ accent }};"></span>ON THIS DEVICE
+            </span>
+          </div>
+          <h1 style="font-family:'Newsreader', Georgia, serif; font-weight:300; font-size:30px; line-height:1.06; letter-spacing:-0.014em; margin:18px 0 0; color:#1C1B16;">The Connectome</h1>
+          <p style="font-size:12px; line-height:1.55; color:#8E8A7D; margin:9px 0 0; max-width:30ch;">Every message you imported, traced to its root and gathered into the few that became stories.</p>
+          <div style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:10.5px; letter-spacing:0.02em; color:#B0AC9F; margin-top:12px;">{{ countLine }}</div>
+        </div>
+
+        <!-- graph -->
+        <div style="position:relative; width:360px; height:344px; margin:10px auto 0;">
+          <svg viewBox="0 0 360 344" width="360" height="344" style="display:block; position:absolute; inset:0;">
+
+            <!-- origin -> thread edges -->
+            <sc-for list="{{ threads }}" as="t" hint-placeholder-count="20">
+              <line x1="{{ origin.x }}" y1="{{ origin.y }}" x2="{{ t.x }}" y2="{{ t.y }}" stroke="{{ t.edgeStroke }}" stroke-width="{{ t.edgeW }}"></line>
+            </sc-for>
+
+            <!-- focus bloom: emails + reply web + lit provenance path -->
+            <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+              <line x1="{{ origin.x }}" y1="{{ origin.y }}" x2="{{ focus.x }}" y2="{{ focus.y }}" stroke="{{ accent }}" stroke-width="1.4" opacity="0.85"></line>
+              <line x1="{{ focus.x }}" y1="{{ focus.y }}" x2="{{ focus.entryX }}" y2="{{ focus.entryY }}" stroke="{{ accent }}" stroke-width="1.4" opacity="0.85"></line>
+              <sc-for list="{{ focus.replyEdges }}" as="re" hint-placeholder-count="8">
+                <line x1="{{ re.x1 }}" y1="{{ re.y1 }}" x2="{{ re.x2 }}" y2="{{ re.y2 }}" stroke="rgba(28,27,22,0.22)" stroke-width="0.7"></line>
+              </sc-for>
+              <sc-for list="{{ focus.dots }}" as="d" hint-placeholder-count="12">
+                <circle cx="{{ d.x }}" cy="{{ d.y }}" r="2.4" fill="rgba(28,27,22,0.5)"></circle>
+              </sc-for>
+            </sc-if>
+
+            <!-- thread nodes -->
+            <sc-for list="{{ threads }}" as="t" hint-placeholder-count="20">
+              <g onClick="{{ t.tap }}" style="cursor:pointer; opacity:{{ t.opacity }}; transition:opacity 0.5s ease;">
+                <circle cx="{{ t.x }}" cy="{{ t.y }}" r="{{ t.hitR }}" fill="transparent"></circle>
+                <circle cx="{{ t.x }}" cy="{{ t.y }}" r="{{ t.r }}" fill="{{ t.nodeFill }}" stroke="{{ t.nodeStroke }}" stroke-width="{{ t.nodeW }}"></circle>
+                <circle cx="{{ t.entryX }}" cy="{{ t.entryY }}" r="{{ t.entryR }}" fill="{{ t.entryFill }}" stroke="{{ t.entryStroke }}" stroke-width="1.2"></circle>
+              </g>
+            </sc-for>
+
+            <!-- origin (the .mbox root) -->
+            <circle cx="{{ origin.x }}" cy="{{ origin.y }}" r="13" fill="url(#hlsteel)" stroke="rgba(120,122,130,0.6)" stroke-width="1"></circle>
+            <circle cx="{{ origin.x }}" cy="{{ origin.y }}" r="4.5" fill="#46545E"></circle>
+            <defs>
+              <radialgradient id="hlsteel" cx="34%" cy="28%" r="80%">
+                <stop offset="0%" stop-color="#FBFBFC"></stop>
+                <stop offset="55%" stop-color="#DCDDE1"></stop>
+                <stop offset="100%" stop-color="#C2C3C9"></stop>
+              </radialgradient>
+            </defs>
+          </svg>
+
+          <!-- overlay labels for story threads -->
+          <sc-for list="{{ labels }}" as="l" hint-placeholder-count="5">
+            <div style="position:absolute; left:{{ l.lx }}px; top:{{ l.ly }}px; transform:translate(-50%,0); width:104px; text-align:center; pointer-events:none; opacity:{{ l.opacity }}; transition:opacity 0.5s ease;">
+              <div style="font-family:'Newsreader',Georgia,serif; font-weight:400; font-size:11.5px; line-height:1.2; color:#5A574D; text-wrap:balance;">{{ l.title }}</div>
+            </div>
+          </sc-for>
+
+          <!-- origin caption -->
+          <div style="position:absolute; left:{{ origin.x }}px; top:{{ originCapY }}px; transform:translate(-50%,0); pointer-events:none; text-align:center;">
+            <div style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:9.5px; letter-spacing:0.04em; color:#9A9CA4;">alice-archive.mbox</div>
+          </div>
+        </div>
+
+        <div style="text-align:center; font-size:11px; color:#B6B2A6; letter-spacing:0.04em; margin-top:2px;">Tap a cluster to open its thread</div>
+      </div>
+      </sc-if>
+
+      <!-- ============ READER ============ -->
+      <sc-if value="{{ isReader }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:8px 26px 60px;">
+        <button onClick="{{ toMap }}" style="appearance:none; border:none; background:none; cursor:pointer; display:inline-flex; align-items:center; gap:8px; font-family:inherit; font-size:10.5px; letter-spacing:0.2em; color:#A9A597; font-weight:600; padding:10px 0 6px;">
+          <span style="font-size:15px; line-height:1; transform:translateY(-0.5px);">‹</span> CONNECTOME
+        </button>
+
+        <div style="font-size:10px; letter-spacing:0.2em; color:#A9A597; font-weight:600; margin:18px 0 14px;">{{ entry.overline }}</div>
+        <h1 style="font-family:'Newsreader',Georgia,serif; font-weight:300; font-size:33px; line-height:1.13; letter-spacing:-0.014em; margin:0; color:#1C1B16;">{{ entry.title }}</h1>
+        <div style="font-family:'Newsreader',Georgia,serif; font-style:italic; font-weight:300; font-size:15px; color:#9A9486; margin-top:12px;">{{ entry.byline }}</div>
+
+        <div style="width:46px; height:1px; background:rgba(28,27,22,0.2); margin:28px 0;"></div>
+
+        <sc-for list="{{ entry.body }}" as="para" hint-placeholder-count="3">
+          <p style="font-family:'Newsreader',Georgia,serif; font-weight:300; font-size:18px; line-height:1.74; color:#3B392F; margin:0 0 22px;">{{ para }}</p>
+        </sc-for>
+
+        <blockquote style="font-family:'Newsreader',Georgia,serif; font-style:italic; font-weight:300; font-size:22px; line-height:1.38; color:#1C1B16; text-align:center; margin:34px auto; max-width:22ch;">{{ entry.quote }}</blockquote>
+
+        <!-- provenance: minimal lineage -->
+        <div style="margin-top:40px; padding-top:24px; border-top:1px solid rgba(28,27,22,0.1);">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:9.5px; letter-spacing:0.22em; color:#9A9486; font-weight:600;">LINEAGE</span>
+            <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:10px; color:#B6B2A6;">{{ entry.shortFp }}</span>
+          </div>
+
+          <div style="margin-top:18px;">
+            <sc-for list="{{ entry.lineage }}" as="rung" hint-placeholder-count="4">
+              <div style="display:grid; grid-template-columns:18px 1fr; column-gap:14px;">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                  <span style="width:8px; height:8px; border-radius:50%; flex:none; background:{{ rung.dot }}; box-shadow:0 0 0 3px rgba(70,84,94,0.08); margin-top:3px;"></span>
+                  <span style="flex:1; width:1px; background:rgba(28,27,22,0.12); margin:3px 0; min-height:10px;"></span>
+                </div>
+                <div style="padding-bottom:16px;">
+                  <div style="font-size:9px; letter-spacing:0.16em; color:#A9A597; font-weight:600;">{{ rung.stage }} · {{ rung.phase }}</div>
+                  <div style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11.5px; color:#3B392F; margin-top:4px;">{{ rung.codec }}</div>
+                  <div style="font-size:11.5px; color:#8E8A7D; margin-top:2px; line-height:1.4;">{{ rung.detail }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex; gap:20px; padding-top:6px;">
+            <div>
+              <div style="font-size:9px; letter-spacing:0.18em; color:#B0AC9F; font-weight:600;">SOURCE CLASS</div>
+              <div style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:12px; color:#3B392F; margin-top:6px;">userHeld</div>
+            </div>
+            <div>
+              <div style="font-size:9px; letter-spacing:0.18em; color:#B0AC9F; font-weight:600;">DECISION</div>
+              <div style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:12px; color:#3B392F; margin-top:6px;">{{ entry.decisionField }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- review controls -->
+        <div style="display:flex; gap:8px; margin-top:30px;">
+          <button onClick="{{ doArchive }}" style="appearance:none; cursor:pointer; flex:1; font-family:inherit; font-size:12px; letter-spacing:0.04em; font-weight:500; color:#F6F4EE; background:#1C1B16; border:1px solid #1C1B16; border-radius:999px; padding:12px 10px;">Archive</button>
+          <button onClick="{{ doKeep }}" style="appearance:none; cursor:pointer; flex:1; font-family:inherit; font-size:12px; letter-spacing:0.04em; font-weight:500; color:#46545E; background:none; border:1px solid rgba(28,27,22,0.18); border-radius:999px; padding:12px 10px;">Keep</button>
+          <button onClick="{{ doDiscard }}" style="appearance:none; cursor:pointer; font-family:inherit; font-size:12px; letter-spacing:0.04em; font-weight:400; color:#A9A597; background:none; border:none; padding:12px 10px;">Discard</button>
+        </div>
+        <sc-if value="{{ entry.decided }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:14px; font-family:'Newsreader',Georgia,serif; font-style:italic; font-weight:300; font-size:13.5px; color:#9A9486;">{{ entry.decisionNote }}</div>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <!-- ============ THREAD SHEET (always present, slides) ============ -->
+      <sc-if value="{{ isMap }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute; left:0; right:0; bottom:0; z-index:30; transform:{{ sheetTransform }}; transition:transform 0.52s cubic-bezier(0.22,1,0.36,1);">
+        <div style="margin:0 8px 8px; background:#FBFAF6; border:1px solid rgba(28,27,22,0.08); border-radius:30px; box-shadow:0 -2px 0 rgba(255,255,255,0.7) inset, 0 24px 50px -24px rgba(30,30,28,0.45); padding:14px 24px 26px;">
+          <div onClick="{{ closeSheet }}" style="width:38px; height:5px; border-radius:3px; background:rgba(28,27,22,0.16); margin:2px auto 16px; cursor:pointer;"></div>
+
+          <div style="display:flex; align-items:center; gap:9px; margin-bottom:12px;">
+            <span style="width:7px; height:7px; border-radius:50%; background:{{ sheet.dotFill }}; border:1px solid {{ sheet.dotStroke }};"></span>
+            <span style="font-size:9.5px; letter-spacing:0.18em; color:{{ sheet.statusColor }}; font-weight:600;">{{ sheet.statusLabel }}</span>
+            <span style="flex:1;"></span>
+            <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:10px; color:#B0AC9F;">{{ sheet.dateSpan }}</span>
+          </div>
+
+          <h2 style="font-family:'Newsreader',Georgia,serif; font-weight:400; font-size:25px; line-height:1.16; letter-spacing:-0.008em; margin:0; color:#1C1B16;">{{ sheet.title }}</h2>
+          <div style="font-size:12.5px; color:#8E8A7D; margin-top:8px; line-height:1.5;">{{ sheet.essence }}</div>
+
+          <div style="display:flex; gap:22px; margin:18px 0 4px; padding:14px 0; border-top:1px solid rgba(28,27,22,0.07); border-bottom:1px solid rgba(28,27,22,0.07);">
+            <div>
+              <div style="font-family:'Newsreader',Georgia,serif; font-size:22px; font-weight:300; color:#1C1B16;">{{ sheet.msgs }}</div>
+              <div style="font-size:9px; letter-spacing:0.14em; color:#A9A597; font-weight:600; margin-top:2px;">MESSAGES</div>
+            </div>
+            <div>
+              <div style="font-family:'Newsreader',Georgia,serif; font-size:22px; font-weight:300; color:#1C1B16;">{{ sheet.people }}</div>
+              <div style="font-size:9px; letter-spacing:0.14em; color:#A9A597; font-weight:600; margin-top:2px;">CORRESPONDENTS</div>
+            </div>
+            <div style="flex:1; text-align:right; align-self:center;">
+              <div style="font-size:11px; color:#9A9486; line-height:1.4;">{{ sheet.participants }}</div>
+            </div>
+          </div>
+
+          <sc-if value="{{ sheet.hasEntry }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ openReader }}" style="appearance:none; cursor:pointer; width:100%; margin-top:18px; display:flex; align-items:center; justify-content:space-between; font-family:inherit; background:#1C1B16; color:#F6F4EE; border:none; border-radius:18px; padding:16px 20px;">
+              <span style="font-family:'Newsreader',Georgia,serif; font-style:italic; font-weight:300; font-size:16px;">Read the woven entry</span>
+              <span style="font-size:18px; line-height:1;">›</span>
+            </button>
+          </sc-if>
+          <sc-if value="{{ sheet.noEntry }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:18px; display:flex; align-items:center; gap:12px; padding:15px 18px; border:1px dashed rgba(28,27,22,0.16); border-radius:18px;">
+              <span style="font-family:'Newsreader',Georgia,serif; font-style:italic; font-weight:300; font-size:14.5px; color:#8E8A7D; line-height:1.4;">Clustered, not yet drafted into a story.</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+
+    <!-- home indicator -->
+    <div style="position:absolute; bottom:9px; left:50%; transform:translateX(-50%); width:134px; height:5px; border-radius:3px; background:rgba(28,27,22,0.5); z-index:50;"></div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#46545E&quot;}}">
+class Component extends DCLogic {
+  state = { view: 'map', focusId: 'trip', sheetOpen: false, openEntry: 'trip', statuses: {} };
+  storeKey = 'happylabs.connectome.v1';
+
+  componentDidMount() {
+    try {
+      const raw = localStorage.getItem(this.storeKey);
+      if (raw) {
+        const s = JSON.parse(raw);
+        this.setState({
+          view: s.view || 'map',
+          focusId: s.focusId || 'trip',
+          sheetOpen: false,
+          openEntry: s.openEntry || 'trip',
+          statuses: s.statuses || {}
+        });
+      }
+    } catch (e) {}
+  }
+  persist(next) {
+    const s = { ...this.state, ...next };
+    try { localStorage.setItem(this.storeKey, JSON.stringify({ view: s.view, focusId: s.focusId, openEntry: s.openEntry, statuses: s.statuses })); } catch (e) {}
+  }
+  tap(id) { this.setState({ focusId: id, sheetOpen: true }); this.persist({ focusId: id }); }
+  closeSheet() { this.setState({ sheetOpen: false }); }
+  openReader() { const id = this.state.focusId; this.setState({ view: 'reader', openEntry: id, sheetOpen: false }); this.persist({ view: 'reader', openEntry: id }); }
+  toMap() { this.setState({ view: 'map', sheetOpen: false }); this.persist({ view: 'map' }); }
+  decide(id, status) { const statuses = { ...this.state.statuses, [id]: status }; this.setState({ statuses }); this.persist({ statuses }); }
+
+  statusMeta(key) {
+    switch (key) {
+      case 'archived':  return { label: 'ARCHIVED',  color: '#46545E' };
+      case 'retained':  return { label: 'KEPT',      color: '#1C1B16' };
+      case 'discarded': return { label: 'DISCARDED', color: '#BCB8AC' };
+      case 'draft':     return { label: 'DRAFT',     color: '#A9A597' };
+      default:          return { label: 'CLUSTERED', color: '#B6B2A6' };
+    }
+  }
+  decisionCopy(key) {
+    switch (key) {
+      case 'archived':  return { note: 'Archived into the journal \u2014 woven, read, and kept.', field: 'approve \u00b7 archived' };
+      case 'retained':  return { note: 'Kept for later. It stays in review until you decide.', field: 'retain \u00b7 in review' };
+      case 'discarded': return { note: 'Discarded \u2014 yet its lineage is retained. Nothing is unmade.', field: 'discard \u00b7 retained' };
+      default:          return { note: '', field: 'draft \u00b7 pending' };
+    }
+  }
+
+  get stories() {
+    return {
+      trip: {
+        title: 'The Summer We Almost Didn\u2019t Book',
+        overline: 'SUMMER \u00b7 2023 \u00b7 USER-HELD', byline: 'a thread with Bob',
+        body: [
+          'It began as a question neither of us wanted to answer first. Bob floated a week in late August; I countered with the cabin we had seen the year before and never returned to. For eleven days the thread sat open like a window \u2014 flights compared, then dismissed, a spreadsheet shared and quietly abandoned.',
+          'What changed nothing, and then everything, was a single line sent at six in the morning: let us just go before the season turns. After that the logistics arranged themselves the way they always do once a decision has been made.',
+          'Reading it back, the trip is barely in here at all. The thread is the deciding \u2014 the long pause, the small permission we gave each other to want the thing. This is the part that would have been lost.'
+        ],
+        quote: 'Let us just go before the season turns.',
+        fingerprint: '9f2c7a1e4b3d8c0f5a6e2d1b7c4f9a3e8d2c1b0a6f5e4d3c2b1a0f9e8d7c6b5a',
+        shortFp: '9f2c7a1e\u2026d7c6b5a'
+      },
+      kitchen: {
+        title: 'Three Quotes and a Kitchen',
+        overline: 'HOME \u00b7 2024 \u00b7 USER-HELD', byline: 'a thread with the contractor',
+        body: [
+          'The contractor answered within the hour, which I took, wrongly, as a good sign. His first number arrived without a breakdown \u2014 a single figure at the bottom of a friendly paragraph. The second quote came as a spreadsheet so detailed it listed the screws.',
+          'Between them, over three weeks, I learned the vocabulary of my own house: load-bearing, soffit, the difference a centimetre of counter overhang makes. The decision was never really about price. It was about who explained the wall I was afraid of taking down.',
+          'We chose the one who drew it for us \u2014 a rough section on the back of the estimate, the beam sketched in. Competence, it turned out, looked like someone willing to show their work.'
+        ],
+        quote: 'Competence looked like someone willing to show their work.',
+        fingerprint: '4b8e1d2c3a5f6e7d8c9b0a1f2e3d4c5b6a7980e1f2d3c4b5a6978e0d1c2b3a4f',
+        shortFp: '4b8e1d2c\u2026c2b3a4f'
+      },
+      bookclub: {
+        title: 'What We Read That Winter',
+        overline: 'WINTER \u00b7 2023 \u00b7 USER-HELD', byline: 'a thread with Dana, Eve & Frank',
+        body: [
+          'Three of us, and never agreement. Dana wanted the long Russian; Eve held out for something we could finish before the holidays; Frank proposed a book he had already read and wished to discuss rather than read again.',
+          'The negotiation ran longer than several of the books would have. We settled on the shortest of the candidates, and then \u2014 this is the part I had forgotten \u2014 read it slowly anyway, a chapter a week, because the having-decided made us generous with it.',
+          'I cannot recall the ending. I remember the arguing, fondly, and that we kept the thread going long after the book was done.'
+        ],
+        quote: 'We kept the thread going long after the book was done.',
+        fingerprint: 'c3a9f1e7b2d4856091fae3c7b8d20a14e6f5c9b3a7d18e2046fb1c9d3a5e7082',
+        shortFp: 'c3a9f1e7\u2026a5e7082'
+      },
+      pickup: {
+        title: 'Twelve Minutes Early',
+        overline: 'AUTUMN \u00b7 2023 \u00b7 USER-HELD', byline: 'a thread with Carol',
+        body: [
+          'The schedule was a small machine that ran on apology. Carol covered Tuesdays; I took Thursdays; the Wednesdays drifted, traded back and forth in single lines \u2014 can you? / got it \u2014 until the trading itself became the friendship.',
+          'What the thread records, without meaning to, is how often we were early. Twelve minutes, again and again, parked outside the gates with the engine off, because being early for someone else\u2019s child is a kind of promise you only make to people you trust.',
+          'The arrangement ended when the year did. The habit of showing up early did not.'
+        ],
+        quote: 'Being early for someone else\u2019s child is a kind of promise.',
+        fingerprint: '7d1f9c2e8a4b3056d9e1c7a2f4b80e36c5a9d3b71f8e024a6cd92b1f3e7058ac',
+        shortFp: '7d1f9c2e\u2026e7058ac'
+      },
+      blockparty: {
+        title: 'The Block Party That Rained',
+        overline: 'SUMMER \u00b7 2024 \u00b7 USER-HELD', byline: 'a thread with Grace & Heidi',
+        body: [
+          'Grace ordered the weather a month in advance, or behaved as though she had. The thread is mostly logistics \u2014 tables, a permit, whose gazebo, the eternal question of whether anyone would bring something that was not a salad.',
+          'It rained. A committed, all-afternoon rain that drove the whole street into Heidi\u2019s garage, where the party was, by every account, better than it would have been on the lawn. Forty people, one garage, the food going faster for the closeness of it.',
+          'Next year\u2019s thread opens with a single line from Grace: same plan. We will just assume the garage.'
+        ],
+        quote: 'Same plan. We will just assume the garage.',
+        fingerprint: '2e8c4a1f9b7d3650e2c8a4f1b9d7350ec6a2f8b4d1e90376ca52f8b1d4e7039a',
+        shortFp: '2e8c4a1f\u2026d4e7039a'
+      }
+    };
+  }
+
+  get threadsBase() {
+    return [
+      { id:'trip',       subject:'Summer trip planning',       msgs:24, people:2, participants:'Bob',              dateSpan:'Jun\u2013Aug \u201923', status:'draft' },
+      { id:'kitchen',    subject:'Kitchen renovation quotes',  msgs:31, people:2, participants:'the contractor',    dateSpan:'Feb\u2013Mar \u201924', status:'retained' },
+      { id:'bookclub',   subject:'Book club: next pick',       msgs:19, people:3, participants:'Dana, Eve, Frank',  dateSpan:'Nov\u2013Dec \u201923', status:'draft' },
+      { id:'pickup',     subject:'School pickup schedule',     msgs:27, people:2, participants:'Carol',            dateSpan:'Sep \u201923\u2013Jun \u201924', status:'archived' },
+      { id:'blockparty', subject:'Neighborhood block party',   msgs:22, people:2, participants:'Grace, Heidi',      dateSpan:'Jul \u201924', status:'draft' },
+      { id:'g1',  subject:'Freelance invoice follow-up',   msgs:14, people:2, participants:'a client',        dateSpan:'\u201924' },
+      { id:'g2',  subject:'Parent-teacher conference',     msgs:11, people:2, participants:'the teacher',     dateSpan:'\u201923' },
+      { id:'g3',  subject:'Apartment lease renewal',       msgs:17, people:2, participants:'the landlord',    dateSpan:'\u201924' },
+      { id:'g4',  subject:'Weekend hiking group',          msgs:26, people:2, participants:'Ivan, Judy',      dateSpan:'\u201924' },
+      { id:'g5',  subject:'Recipe exchange',               msgs:13, people:2, participants:'Kate, Liam',      dateSpan:'\u201923' },
+      { id:'g6',  subject:'Volunteer shift swap',          msgs:9,  people:2, participants:'Maya, Nora',      dateSpan:'\u201924' },
+      { id:'g7',  subject:'Dental appointment reminders',  msgs:8,  people:2, participants:'the office',      dateSpan:'\u201924' },
+      { id:'g8',  subject:'Home internet outage',          msgs:21, people:2, participants:'support',         dateSpan:'\u201923' },
+      { id:'g9',  subject:'Birthday dinner reservations',  msgs:16, people:2, participants:'Olivia, Paul',    dateSpan:'\u201924' },
+      { id:'g10', subject:'Garden compost questions',      msgs:12, people:2, participants:'Quinn, Ruth',     dateSpan:'\u201923' },
+      { id:'g11', subject:'Car maintenance schedule',      msgs:18, people:2, participants:'the mechanic',    dateSpan:'\u201924' },
+      { id:'g12', subject:'Community choir rehearsal',     msgs:23, people:2, participants:'Sam, Tina',       dateSpan:'\u201924' },
+      { id:'g13', subject:'Tax document checklist',        msgs:15, people:2, participants:'the accountant',  dateSpan:'\u201924' },
+      { id:'g14', subject:'Language exchange partner',     msgs:20, people:2, participants:'Uma, Victor',     dateSpan:'\u201923' },
+      { id:'g15', subject:'Pet sitter instructions',       msgs:10, people:2, participants:'Wendy',           dateSpan:'\u201924' }
+    ];
+  }
+
+  lineageFor(t) {
+    const st = this.stories[t.id];
+    const fp6 = (st ? st.fingerprint : '000000').slice(0, 6);
+    return [
+      { stage:'01', phase:'IMPORT',  codec:'MboxImportCodec \u00b7 0.1.0',     detail:'alice-archive.mbox \u2014 500 messages', dot:'#46545E' },
+      { stage:'02', phase:'CLUSTER', codec:'ThreadClusterCodec \u00b7 0.1.0',   detail:t.msgs + ' raw emails \u2192 1 thread', dot:'#46545E' },
+      { stage:'03', phase:'EXTRACT', codec:'StoryExtractionCodec \u00b7 0.1.0', detail:'ExtractiveFallbackProvider \u2014 1 candidate', dot:'#46545E' },
+      { stage:'04', phase:'DRAFT',   codec:'JournalDraftCodec \u00b7 0.1.0',    detail:'fingerprint ' + fp6 + '\u2026', dot:'#46545E' }
+    ];
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#46545E';
+    const st = this.state.statuses;
+    const cx = 180, cy = 162;
+    const GA = Math.PI * (3 - Math.sqrt(5));
+
+    const threads = this.threadsBase.map((t, i) => {
+      const r = 74 + 13 * Math.sqrt(i);
+      const a = i * GA - Math.PI / 2;
+      const x = cx + r * Math.cos(a);
+      const y = cy + r * Math.sin(a);
+      const dirx = (x - cx) / r, diry = (y - cy) / r;
+      const hasEntry = !!this.stories[t.id];
+      const key = hasEntry ? (st[t.id] || t.status) : 'clustered';
+      const nodeR = 3.4 + Math.min(t.msgs, 31) / 9;
+      const entryR = hasEntry ? 5 : 0;
+      let entryFill = 'transparent', entryStroke = 'transparent';
+      if (hasEntry) {
+        if (key === 'archived') { entryFill = accent; entryStroke = accent; }
+        else if (key === 'retained') { entryFill = '#1C1B16'; entryStroke = '#1C1B16'; }
+        else if (key === 'discarded') { entryFill = 'transparent'; entryStroke = '#C2BEB2'; }
+        else { entryFill = '#F6F4EE'; entryStroke = 'rgba(28,27,22,0.45)'; }
+      }
+      const dim = this.state.sheetOpen && this.state.focusId !== t.id ? 0.16 : 1;
+      return {
+        ...t, x, y, hasEntry,
+        r: nodeR.toFixed(1), hitR: 22,
+        nodeFill: hasEntry ? '#F6F4EE' : 'rgba(28,27,22,0.16)',
+        nodeStroke: hasEntry ? '#1C1B16' : 'transparent',
+        nodeW: hasEntry ? 1.4 : 0,
+        entryX: (x + dirx * 15).toFixed(1), entryY: (y + diry * 15).toFixed(1),
+        entryR, entryFill, entryStroke,
+        edgeStroke: hasEntry ? 'rgba(28,27,22,0.13)' : 'rgba(28,27,22,0.05)',
+        edgeW: hasEntry ? 1 : 0.7,
+        opacity: dim,
+        tap: () => this.tap(t.id)
+      };
+    });
+
+    const byId = id => threads.find(t => t.id === id) || threads[0];
+
+    // labels for the 5 story threads
+    const shortLabel = { trip:'Summer trip', kitchen:'The kitchen', bookclub:'Book club', pickup:'Pickup runs', blockparty:'Block party' };
+    const labels = threads.filter(t => t.hasEntry).map(t => {
+      const above = t.y < cy;
+      return {
+        title: shortLabel[t.id] || this.stories[t.id].title,
+        lx: t.x,
+        ly: (above ? t.y - 26 : t.y + 13).toFixed(1),
+        opacity: this.state.sheetOpen && this.state.focusId !== t.id ? 0.12 : 0.92
+      };
+    });
+
+    // focused thread geometry (bloom)
+    const fT = byId(this.state.focusId);
+    const fIsStory = !!this.stories[fT.id];
+    const dotCount = Math.min(fT.msgs, 16);
+    const dots = [], replyEdges = [];
+    let prev = { x: parseFloat(fT.x), y: parseFloat(fT.y) };
+    for (let k = 0; k < dotCount; k++) {
+      const ang = (k / dotCount) * Math.PI * 2 - Math.PI / 2;
+      const rr = 34 + (k % 2 === 0 ? 0 : 7);
+      const dx = parseFloat(fT.x) + rr * Math.cos(ang);
+      const dy = parseFloat(fT.y) + rr * Math.sin(ang);
+      dots.push({ x: dx.toFixed(1), y: dy.toFixed(1) });
+      replyEdges.push({ x1: prev.x.toFixed ? prev.x.toFixed(1) : prev.x, y1: prev.y.toFixed ? prev.y.toFixed(1) : prev.y, x2: dx.toFixed(1), y2: dy.toFixed(1) });
+      prev = { x: dx, y: dy };
+    }
+    const focus = { x: fT.x, y: fT.y, entryX: fT.entryX, entryY: fT.entryY, dots, replyEdges };
+
+    // sheet content
+    const sKey = fIsStory ? (st[fT.id] || fT.status) : 'clustered';
+    const sMeta = this.statusMeta(sKey);
+    const sheet = {
+      title: fIsStory ? this.stories[fT.id].title : fT.subject,
+      essence: fIsStory ? this.stories[fT.id].byline.replace('a thread', 'A thread') + ' \u2014 distilled into a story.' : 'A cluster of messages on this subject.',
+      msgs: fT.msgs, people: fT.people, participants: 'with ' + fT.participants,
+      dateSpan: fT.dateSpan,
+      statusLabel: sMeta.label, statusColor: sMeta.color,
+      dotFill: sKey === 'archived' ? accent : (sKey === 'retained' ? '#1C1B16' : 'transparent'),
+      dotStroke: 'rgba(28,27,22,0.4)',
+      hasEntry: fIsStory, noEntry: !fIsStory
+    };
+
+    // reader entry
+    const eId = this.state.openEntry;
+    const story = this.stories[eId] || this.stories.trip;
+    const eThread = this.threadsBase.find(t => t.id === eId) || this.threadsBase[0];
+    const eKey = st[eId] || eThread.status || 'draft';
+    const copy = this.decisionCopy(eKey);
+    const entry = {
+      ...story,
+      lineage: this.lineageFor(eThread),
+      decided: eKey !== 'draft',
+      decisionNote: copy.note, decisionField: copy.field
+    };
+
+    const totalMsgs = this.threadsBase.reduce((s, t) => s + t.msgs, 0);
+    const kept = this.threadsBase.filter(t => this.stories[t.id] && (st[t.id] || t.status) === 'archived').length;
+    const countLine = '500 MESSAGES \u00b7 20 THREADS \u00b7 5 STORIES \u00b7 ' + kept + ' ARCHIVED';
+
+    return {
+      isMap: this.state.view === 'map',
+      isReader: this.state.view === 'reader',
+      sheetOpen: this.state.sheetOpen,
+      sheetTransform: this.state.sheetOpen ? 'translateY(0)' : 'translateY(112%)',
+      accent,
+      origin: { x: cx, y: cy }, originCapY: cy + 18,
+      threads, labels, focus, sheet, entry, countLine,
+      tap: id => this.tap(id),
+      closeSheet: () => this.closeSheet(),
+      openReader: () => this.openReader(),
+      toMap: () => this.toMap(),
+      doArchive: () => this.decide(this.state.openEntry, 'archived'),
+      doKeep: () => this.decide(this.state.openEntry, 'retained'),
+      doDiscard: () => this.decide(this.state.openEntry, 'discarded')
+    };
+  }
+}
+</script>
+</body>
+</html>

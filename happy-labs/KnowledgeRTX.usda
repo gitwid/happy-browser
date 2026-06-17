@@ -1,0 +1,520 @@
+#usda 1.0
+(
+    defaultPrim = "KnowledgeRTX"
+    metersPerUnit = 1
+    upAxis = "Y"
+    doc = "Provenance-preserving attention ray tracing for human convergence. Production-valid USD ASCII layer."
+)
+
+def Xform "KnowledgeRTX" (
+    kind = "assembly"
+)
+{
+    custom string hkrtx:schema = "HappyKnowledgeRTX"
+    custom string hkrtx:schemaVersion = "1.0.0"
+    custom token hkrtx:governanceInvariant = "provenance_required_before_convergence"
+    custom token hkrtx:humanRole = "convergence_authority"
+
+    def Scope "Question"
+    {
+        custom string hkrtx:id = "question_0001"
+        custom token hkrtx:type = "intent_source"
+        custom string hkrtx:text = "Render the KnowledgeRTX kernel as an executable USD/Omniverse scene graph."
+        rel hkrtx:casts = [
+            </KnowledgeRTX/AttentionRays/IntentRay_Primary>,
+            </KnowledgeRTX/AttentionRays/IntentRay_Provenance>,
+            </KnowledgeRTX/AttentionRays/IntentRay_Runtime>
+        ]
+    }
+
+    def Scope "AttentionRays"
+    {
+        custom token hkrtx:type = "attention_ray_set"
+
+        def Xform "IntentRay_Primary"
+        {
+            custom token hkrtx:rayType = "semantic_intent"
+            custom float hkrtx:weight = 1
+            custom token hkrtx:scoreMode = "illustrative_placeholder"
+            custom token hkrtx:scoreAuthority = "non_binding"
+            rel hkrtx:samples = [
+                </KnowledgeRTX/ReflectiveEntities/Resource_DocumentCorpus>,
+                </KnowledgeRTX/ReflectiveEntities/Resource_UserContext>
+            ]
+        }
+
+        def Xform "IntentRay_Provenance"
+        {
+            custom token hkrtx:rayType = "provenance_validation"
+            custom float hkrtx:weight = 1
+            custom token hkrtx:scoreMode = "illustrative_placeholder"
+            custom token hkrtx:scoreAuthority = "non_binding"
+            rel hkrtx:samples = [
+                </KnowledgeRTX/ReflectiveEntities/Resource_SourceChain>,
+                </KnowledgeRTX/ReflectiveEntities/Resource_ModelBoundary>
+            ]
+        }
+
+        def Xform "IntentRay_Runtime"
+        {
+            custom token hkrtx:rayType = "runtime_applicability"
+            custom float hkrtx:weight = 0.85
+            custom token hkrtx:scoreMode = "illustrative_placeholder"
+            custom token hkrtx:scoreAuthority = "non_binding"
+            rel hkrtx:samples = [
+                </KnowledgeRTX/ReflectiveEntities/Resource_RuntimeObservation>
+            ]
+        }
+    }
+
+    def Scope "ReflectiveEntities"
+    {
+        custom token hkrtx:type = "reflective_entity_set"
+
+        def Xform "Resource_DocumentCorpus"
+        {
+            custom token hkrtx:entityType = "knowledge_surface"
+            custom string hkrtx:authorityMode = "referential_not_final"
+            rel hkrtx:produces = [
+                </KnowledgeRTX/Reflections/Reflection_CorpusStructure>
+            ]
+        }
+
+        def Xform "Resource_UserContext"
+        {
+            custom token hkrtx:entityType = "human_context_surface"
+            custom string hkrtx:authorityMode = "situated_context"
+            rel hkrtx:produces = [
+                </KnowledgeRTX/Reflections/Reflection_UserIntent>
+            ]
+        }
+
+        def Xform "Resource_SourceChain"
+        {
+            custom token hkrtx:entityType = "provenance_surface"
+            custom string hkrtx:authorityMode = "trace_validation"
+            rel hkrtx:produces = [
+                </KnowledgeRTX/Reflections/Reflection_ProvenanceIntegrity>
+            ]
+        }
+
+        def Xform "Resource_ModelBoundary"
+        {
+            custom token hkrtx:entityType = "capability_boundary_surface"
+            custom string hkrtx:authorityMode = "limit_disclosure"
+            rel hkrtx:produces = [
+                </KnowledgeRTX/Reflections/Reflection_KnownUnknowns>
+            ]
+        }
+
+        def Xform "Resource_RuntimeObservation"
+        {
+            custom token hkrtx:entityType = "execution_surface"
+            custom string hkrtx:authorityMode = "implementation_feedback"
+            rel hkrtx:produces = [
+                </KnowledgeRTX/Reflections/Reflection_RuntimeFit>
+            ]
+        }
+    }
+
+    def Scope "Reflections"
+    {
+        custom token hkrtx:type = "evidence_field"
+
+        def Xform "Reflection_CorpusStructure"
+        {
+            rel hkrtx:origin = </KnowledgeRTX/ReflectiveEntities/Resource_DocumentCorpus>
+            custom string[] hkrtx:transformationChain = ["sample", "abstract", "structure"]
+            custom float hkrtx:confidence = 0.86
+            custom float hkrtx:staleness = 0
+            custom token hkrtx:scoreMode = "illustrative_placeholder"
+            custom token hkrtx:scoreAuthority = "non_binding"
+            custom token hkrtx:status = "usable"
+            rel hkrtx:feeds = </KnowledgeRTX/ConvergenceField>
+        }
+
+        def Xform "Reflection_UserIntent"
+        {
+            rel hkrtx:origin = </KnowledgeRTX/ReflectiveEntities/Resource_UserContext>
+            custom string[] hkrtx:transformationChain = ["observe", "compress", "align"]
+            custom float hkrtx:confidence = 0.91
+            custom float hkrtx:staleness = 0
+            custom token hkrtx:scoreMode = "illustrative_placeholder"
+            custom token hkrtx:scoreAuthority = "non_binding"
+            custom token hkrtx:status = "usable"
+            rel hkrtx:feeds = </KnowledgeRTX/ConvergenceField>
+        }
+
+        def Xform "Reflection_ProvenanceIntegrity"
+        {
+            rel hkrtx:origin = </KnowledgeRTX/ReflectiveEntities/Resource_SourceChain>
+            custom string[] hkrtx:transformationChain = ["trace", "validate", "expose"]
+            custom float hkrtx:confidence = 0.94
+            custom float hkrtx:staleness = 0
+            custom token hkrtx:scoreMode = "illustrative_placeholder"
+            custom token hkrtx:scoreAuthority = "non_binding"
+            custom token hkrtx:status = "usable"
+            rel hkrtx:feeds = </KnowledgeRTX/ConvergenceField>
+        }
+
+        def Xform "Reflection_KnownUnknowns"
+        {
+            rel hkrtx:origin = </KnowledgeRTX/ReflectiveEntities/Resource_ModelBoundary>
+            custom string[] hkrtx:transformationChain = ["detect_limit", "preserve_gap", "report_boundary"]
+            custom float hkrtx:confidence = 0.97
+            custom float hkrtx:staleness = 0
+            custom token hkrtx:scoreMode = "illustrative_placeholder"
+            custom token hkrtx:scoreAuthority = "non_binding"
+            custom token hkrtx:status = "usable"
+            rel hkrtx:feeds = </KnowledgeRTX/ConvergenceField>
+        }
+
+        def Xform "Reflection_RuntimeFit"
+        {
+            rel hkrtx:origin = </KnowledgeRTX/ReflectiveEntities/Resource_RuntimeObservation>
+            custom string[] hkrtx:transformationChain = ["map", "bind", "execute"]
+            custom float hkrtx:confidence = 0.78
+            custom float hkrtx:staleness = 0
+            custom token hkrtx:scoreMode = "illustrative_placeholder"
+            custom token hkrtx:scoreAuthority = "non_binding"
+            custom token hkrtx:status = "usable_with_gaps"
+            rel hkrtx:feeds = </KnowledgeRTX/ConvergenceField>
+        }
+    }
+
+    def Xform "ConvergenceField"
+    {
+        custom token hkrtx:type = "convergence_field"
+        custom float hkrtx:convergenceScore = 0.89
+        custom float hkrtx:uncertaintyScore = 0.11
+        custom int hkrtx:activeReflectionCount = 5
+        custom token hkrtx:scoreMode = "illustrative_placeholder"
+        custom token hkrtx:scoreAuthority = "non_binding"
+        custom token hkrtx:decisionState = "ready_for_human_review"
+        rel hkrtx:inputs = [
+            </KnowledgeRTX/Reflections/Reflection_CorpusStructure>,
+            </KnowledgeRTX/Reflections/Reflection_UserIntent>,
+            </KnowledgeRTX/Reflections/Reflection_ProvenanceIntegrity>,
+            </KnowledgeRTX/Reflections/Reflection_KnownUnknowns>,
+            </KnowledgeRTX/Reflections/Reflection_RuntimeFit>
+        ]
+        rel hkrtx:evaluatedBy = </KnowledgeRTX/HumanInLoop>
+    }
+
+    def Xform "HumanInLoop"
+    {
+        custom token hkrtx:type = "human_convergence_authority"
+        custom bool hkrtx:acceptConvergence = true
+        custom bool hkrtx:continueSampling = false
+        custom string hkrtx:rationale = "Sufficient structural convergence for production specification; unresolved runtime bindings remain explicit."
+        rel hkrtx:authorizes = </KnowledgeRTX/Action>
+    }
+
+    def Xform "Action"
+    {
+        custom token hkrtx:type = "decision_action"
+        custom token hkrtx:executionState = "publishable_specification"
+        custom string hkrtx:decision = "Use this layer as canonical graph model for KnowledgeRTX / Happy Browser convergence architecture."
+    }
+
+    def Scope "Relations"
+    {
+        custom token hkrtx:type = "relation_registry"
+
+        def Xform "Relation_Question_casts_Primary"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "casts"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/Question>
+            rel hkrtx:to = </KnowledgeRTX/AttentionRays/IntentRay_Primary>
+        }
+
+        def Xform "Relation_Question_casts_Provenance"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "casts"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/Question>
+            rel hkrtx:to = </KnowledgeRTX/AttentionRays/IntentRay_Provenance>
+        }
+
+        def Xform "Relation_Question_casts_Runtime"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "casts"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/Question>
+            rel hkrtx:to = </KnowledgeRTX/AttentionRays/IntentRay_Runtime>
+        }
+
+        def Xform "Relation_Primary_samples_DocumentCorpus"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "samples"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/AttentionRays/IntentRay_Primary>
+            rel hkrtx:to = </KnowledgeRTX/ReflectiveEntities/Resource_DocumentCorpus>
+        }
+
+        def Xform "Relation_Primary_samples_UserContext"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "samples"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/AttentionRays/IntentRay_Primary>
+            rel hkrtx:to = </KnowledgeRTX/ReflectiveEntities/Resource_UserContext>
+        }
+
+        def Xform "Relation_Provenance_samples_SourceChain"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "samples"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/AttentionRays/IntentRay_Provenance>
+            rel hkrtx:to = </KnowledgeRTX/ReflectiveEntities/Resource_SourceChain>
+        }
+
+        def Xform "Relation_Provenance_samples_ModelBoundary"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "samples"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/AttentionRays/IntentRay_Provenance>
+            rel hkrtx:to = </KnowledgeRTX/ReflectiveEntities/Resource_ModelBoundary>
+        }
+
+        def Xform "Relation_Runtime_samples_RuntimeObservation"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "samples"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/AttentionRays/IntentRay_Runtime>
+            rel hkrtx:to = </KnowledgeRTX/ReflectiveEntities/Resource_RuntimeObservation>
+        }
+
+        def Xform "Relation_DocumentCorpus_produces_CorpusStructure"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "produces"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/ReflectiveEntities/Resource_DocumentCorpus>
+            rel hkrtx:to = </KnowledgeRTX/Reflections/Reflection_CorpusStructure>
+        }
+
+        def Xform "Relation_UserContext_produces_UserIntent"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "produces"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/ReflectiveEntities/Resource_UserContext>
+            rel hkrtx:to = </KnowledgeRTX/Reflections/Reflection_UserIntent>
+        }
+
+        def Xform "Relation_SourceChain_produces_ProvenanceIntegrity"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "produces"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/ReflectiveEntities/Resource_SourceChain>
+            rel hkrtx:to = </KnowledgeRTX/Reflections/Reflection_ProvenanceIntegrity>
+        }
+
+        def Xform "Relation_ModelBoundary_produces_KnownUnknowns"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "produces"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/ReflectiveEntities/Resource_ModelBoundary>
+            rel hkrtx:to = </KnowledgeRTX/Reflections/Reflection_KnownUnknowns>
+        }
+
+        def Xform "Relation_RuntimeObservation_produces_RuntimeFit"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "produces"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/ReflectiveEntities/Resource_RuntimeObservation>
+            rel hkrtx:to = </KnowledgeRTX/Reflections/Reflection_RuntimeFit>
+        }
+
+        def Xform "Relation_CorpusStructure_origin_DocumentCorpus"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "origin"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/Reflections/Reflection_CorpusStructure>
+            rel hkrtx:to = </KnowledgeRTX/ReflectiveEntities/Resource_DocumentCorpus>
+        }
+
+        def Xform "Relation_UserIntent_origin_UserContext"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "origin"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/Reflections/Reflection_UserIntent>
+            rel hkrtx:to = </KnowledgeRTX/ReflectiveEntities/Resource_UserContext>
+        }
+
+        def Xform "Relation_ProvenanceIntegrity_origin_SourceChain"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "origin"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/Reflections/Reflection_ProvenanceIntegrity>
+            rel hkrtx:to = </KnowledgeRTX/ReflectiveEntities/Resource_SourceChain>
+        }
+
+        def Xform "Relation_KnownUnknowns_origin_ModelBoundary"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "origin"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/Reflections/Reflection_KnownUnknowns>
+            rel hkrtx:to = </KnowledgeRTX/ReflectiveEntities/Resource_ModelBoundary>
+        }
+
+        def Xform "Relation_RuntimeFit_origin_RuntimeObservation"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "origin"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/Reflections/Reflection_RuntimeFit>
+            rel hkrtx:to = </KnowledgeRTX/ReflectiveEntities/Resource_RuntimeObservation>
+        }
+
+        def Xform "Relation_CorpusStructure_feeds_Convergence"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "feeds"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/Reflections/Reflection_CorpusStructure>
+            rel hkrtx:to = </KnowledgeRTX/ConvergenceField>
+        }
+
+        def Xform "Relation_UserIntent_feeds_Convergence"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "feeds"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/Reflections/Reflection_UserIntent>
+            rel hkrtx:to = </KnowledgeRTX/ConvergenceField>
+        }
+
+        def Xform "Relation_ProvenanceIntegrity_feeds_Convergence"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "feeds"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/Reflections/Reflection_ProvenanceIntegrity>
+            rel hkrtx:to = </KnowledgeRTX/ConvergenceField>
+        }
+
+        def Xform "Relation_KnownUnknowns_feeds_Convergence"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "feeds"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/Reflections/Reflection_KnownUnknowns>
+            rel hkrtx:to = </KnowledgeRTX/ConvergenceField>
+        }
+
+        def Xform "Relation_RuntimeFit_feeds_Convergence"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "feeds"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/Reflections/Reflection_RuntimeFit>
+            rel hkrtx:to = </KnowledgeRTX/ConvergenceField>
+        }
+
+        def Xform "Relation_Convergence_inputs_CorpusStructure"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "input"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/ConvergenceField>
+            rel hkrtx:to = </KnowledgeRTX/Reflections/Reflection_CorpusStructure>
+        }
+
+        def Xform "Relation_Convergence_inputs_UserIntent"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "input"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/ConvergenceField>
+            rel hkrtx:to = </KnowledgeRTX/Reflections/Reflection_UserIntent>
+        }
+
+        def Xform "Relation_Convergence_inputs_ProvenanceIntegrity"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "input"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/ConvergenceField>
+            rel hkrtx:to = </KnowledgeRTX/Reflections/Reflection_ProvenanceIntegrity>
+        }
+
+        def Xform "Relation_Convergence_inputs_KnownUnknowns"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "input"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/ConvergenceField>
+            rel hkrtx:to = </KnowledgeRTX/Reflections/Reflection_KnownUnknowns>
+        }
+
+        def Xform "Relation_Convergence_inputs_RuntimeFit"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "input"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/ConvergenceField>
+            rel hkrtx:to = </KnowledgeRTX/Reflections/Reflection_RuntimeFit>
+        }
+
+        def Xform "Relation_Convergence_evaluatedBy_Human"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "evaluatedBy"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/ConvergenceField>
+            rel hkrtx:to = </KnowledgeRTX/HumanInLoop>
+        }
+
+        def Xform "Relation_Human_authorizes_Action"
+        {
+            custom token hkrtx:type = "relation"
+            custom token hkrtx:relationKind = "authorizes"
+            custom token hkrtx:status = "active"
+            rel hkrtx:from = </KnowledgeRTX/HumanInLoop>
+            rel hkrtx:to = </KnowledgeRTX/Action>
+        }
+    }
+
+    def Scope "Gaps"
+    {
+        custom token hkrtx:type = "explicit_gap_registry"
+
+        def Xform "Gap_RuntimeSourceBindings"
+        {
+            custom token hkrtx:gapType = "binding_required"
+            custom string hkrtx:description = "Concrete browser, filesystem, model, memory, and source adapters must bind to ReflectiveEntities at runtime."
+            custom token hkrtx:severity = "blocking_for_execution_not_for_schema"
+        }
+
+        def Xform "Gap_CustomSchemaPlugin"
+        {
+            custom token hkrtx:gapType = "schema_extension_required"
+            custom string hkrtx:description = "For strict typed Omniverse deployment, hkrtx properties should be promoted into a Kit-loaded USD schema plugin."
+            custom token hkrtx:severity = "required_for_native_tooling"
+        }
+
+        def Xform "Gap_ConfidenceComputation"
+        {
+            custom token hkrtx:gapType = "algorithm_required"
+            custom string hkrtx:description = "Confidence and convergence scores require a deterministic implementation policy before automated execution."
+            custom token hkrtx:severity = "required_for_automation"
+        }
+    }
+}

@@ -628,8 +628,7 @@
     }
 
     const response = await fetch(buildParseUrl(lang, title), {
-      signal,
-      credentials: "same-origin"
+      signal
     });
 
     if (!response.ok) {
@@ -1887,8 +1886,50 @@
     }
   }
 
+  function whenDocumentElementReady(callback) {
+    if (document.documentElement) {
+      callback();
+      return;
+    }
+
+    const observer = new MutationObserver(() => {
+      if (document.documentElement) {
+        observer.disconnect();
+        callback();
+      }
+    });
+    observer.observe(document, { childList: true });
+  }
+
+  function injectMainWorldPopupsGuard() {
+    const runtime = globalScope.chrome?.runtime || globalScope.browser?.runtime;
+    if (!runtime?.getURL) {
+      return;
+    }
+
+    whenDocumentElementReady(() => {
+      const root = document.documentElement;
+      if (!root || root.dataset.happyWikiMainGuard === "1") {
+        return;
+      }
+
+      root.dataset.happyWikiMainGuard = "1";
+
+      const script = document.createElement("script");
+      script.src = runtime.getURL("src/wikipedia-popups-guard.js");
+      script.async = false;
+      script.onload = () => script.remove();
+      script.onerror = () => {
+        delete root.dataset.happyWikiMainGuard;
+      };
+      root.appendChild(script);
+    });
+  }
+
   function markActive() {
-    document.documentElement.dataset.happyWikiPeek = "active";
+    whenDocumentElementReady(() => {
+      document.documentElement.dataset.happyWikiPeek = "active";
+    });
   }
 
   function boot() {
@@ -1896,8 +1937,11 @@
       return;
     }
 
-    suppressNativePopups();
-    markActive();
+    injectMainWorldPopupsGuard();
+    whenDocumentElementReady(() => {
+      suppressNativePopups();
+      markActive();
+    });
     loadSettings();
 
     const start = () => {

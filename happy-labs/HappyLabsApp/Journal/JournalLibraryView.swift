@@ -61,9 +61,11 @@ struct JournalLibraryView: View {
                 .padding(.top, 40)
                 .padding(.bottom, 8)
 
-                ForEach(rows) { row in
-                    JournalLibraryRow(row: row) {
-                        onOpen(row.id)
+                LazyVStack(spacing: 0) {
+                    ForEach(rows) { row in
+                        JournalLibraryRow(row: row) {
+                            onOpen(row.id)
+                        }
                     }
                 }
 

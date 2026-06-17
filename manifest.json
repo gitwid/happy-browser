@@ -16,17 +16,17 @@
     "http://*/*",
     "https://*/*"
   ],
-  "content_scripts": [
+  "web_accessible_resources": [
     {
-      "matches": [
-        "*://*.wikipedia.org/*"
-      ],
-      "js": [
+      "resources": [
         "src/wikipedia-popups-guard.js"
       ],
-      "run_at": "document_start",
-      "world": "MAIN"
-    },
+      "matches": [
+        "*://*.wikipedia.org/*"
+      ]
+    }
+  ],
+  "content_scripts": [
     {
       "matches": [
         "*://*.wikipedia.org/*"

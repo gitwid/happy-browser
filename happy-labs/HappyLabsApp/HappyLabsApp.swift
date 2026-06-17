@@ -34,32 +34,26 @@ final class AppModel: ObservableObject {
     @Published var coherenceReport: CoherenceReport?
     @Published var statusMessage = "Import a Mail.app .mbox export to begin."
     @Published var journalEntries: [JournalEntryEntity] = []
+    @Published var journalRows: [JournalEntryRow] = []
+    @Published var journalCountLine = "0 ENTRIES · 0 ARCHIVED · 0 IN REVIEW"
     @Published var transformationLogs: [TransformationLogEntity] = []
     @Published var isBusy = false
     @Published var importProgressMessage: String?
     @Published var importScopeTitle: String?
     @Published var pendingImportURL: URL?
     @Published var selectedImportScope: ImportScope = .lastMonth
+    @Published var mailboxPreview: MailboxPreview?
 
     private var importTask: Task<Void, Never>?
+    private let dataResetService: DataResetService
 
     init() {
         orchestrator = PipelineOrchestrator(persistence: persistence)
         reviewService = HumanReviewService(persistence: persistence)
         exportService = ExportService(persistence: persistence)
         coherenceService = CoherenceReportService(persistence: persistence)
+        dataResetService = DataResetService(persistence: persistence)
         refresh()
-    }
-
-    var journalRows: [JournalEntryRow] {
-        JournalPresentationBuilder.rows(
-            from: journalEntries,
-            context: persistence.container.viewContext
-        )
-    }
-
-    var journalCountLine: String {
-        JournalPresentationBuilder.countLine(entries: journalRows)
     }
 
     func refresh() {
@@ -67,9 +61,15 @@ final class AppModel: ObservableObject {
         let repo = EntityRepository(context: context)
         journalEntries = (try? repo.fetchJournalEntries()) ?? []
         transformationLogs = (try? repo.fetchTransformationLogs()) ?? []
-        if let lastImportID {
-            coherenceReport = try? coherenceService.generate(mboxImportID: lastImportID)
-        }
+        rebuildPresentation()
+    }
+
+    private func rebuildPresentation() {
+        journalRows = JournalPresentationBuilder.rows(
+            from: journalEntries,
+            context: persistence.container.viewContext
+        )
+        journalCountLine = JournalPresentationBuilder.countLine(entries: journalRows)
     }
 
     func pickMboxImport() {
@@ -81,6 +81,35 @@ final class AppModel: ObservableObject {
         panel.treatsFilePackagesAsDirectories = false
         if panel.runModal() == .OK, let url = panel.url {
             pendingImportURL = url
+            loadMailboxPreview(for: url)
+        }
+    }
+
+    func loadMailboxPreview(for url: URL) {
+        mailboxPreview = nil
+        Task.detached(priority: .utility) {
+            let preview = try? MailboxPreviewReader.preview(at: url)
+            await MainActor.run {
+                guard self.pendingImportURL == url else { return }
+                self.mailboxPreview = preview
+                if preview?.isLegacyArchive == true {
+                    self.selectedImportScope = .everything
+                }
+            }
+        }
+    }
+
+    func clearAllJournalData() {
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            try dataResetService.clearAllData()
+            lastImportID = nil
+            coherenceReport = nil
+            statusMessage = "Cleared all journal data on this device."
+            refresh()
+        } catch {
+            statusMessage = "Clear failed: \(error.localizedDescription)"
         }
     }
 
@@ -92,6 +121,8 @@ final class AppModel: ObservableObject {
         statusMessage = "Importing (\(scope.title))…"
 
         let orchestrator = orchestrator
+        let entryCountBefore = journalEntries.count
+        let fileName = url.lastPathComponent
         importTask = Task { @MainActor in
             do {
                 importProgressMessage = "Reading and parsing messages…"
@@ -126,14 +157,16 @@ final class AppModel: ObservableObject {
 
                 lastImportID = importOutput.importEntityID
                 self.coherenceReport = coherenceReport
-                let skipped = importOutput.totalParsedCount - importOutput.messageCount
-                if skipped > 0 {
-                    statusMessage = "Imported \(importOutput.messageCount) of \(importOutput.totalParsedCount) messages (\(scope.title)) → \(coherenceReport.journalDraftCount) drafts."
-                } else {
-                    statusMessage = "Imported \(importOutput.messageCount) messages → \(coherenceReport.journalDraftCount) drafts (\(String(format: "%.1f", coherenceReport.messagesPerStory ?? 0)) msgs/story)."
-                }
                 finishImport()
                 refresh()
+                let added = journalEntries.count - entryCountBefore
+                let skipped = importOutput.totalParsedCount - importOutput.messageCount
+                if skipped > 0 {
+                    statusMessage = "Added \(added) drafts from \(fileName) (\(importOutput.messageCount) of \(importOutput.totalParsedCount) messages matched \(scope.title)). \(journalEntries.count) total."
+                } else {
+                    statusMessage = "Added \(added) drafts from \(fileName). \(journalEntries.count) entries in the journal."
+                }
+                mailboxPreview = nil
             } catch is CancellationError {
                 statusMessage = "Import cancelled."
                 finishImport()

@@ -13,3 +13,7 @@ happy-labs/**/*.xcuserstate
 happy-labs/**/DerivedData/
 happy-labs/**/.build/
 happy-labs/[Gmail]/
+happy-labs/**/*.mbox/
+**/*.mbox/
+happy-labs/.swiftpm/
+Bespoke journal design.zip

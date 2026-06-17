@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ImportScopeSheet: View {
     let fileName: String
+    let preview: MailboxPreview?
     @Binding var selectedScope: ImportScope
     let onCancel: () -> Void
     let onImport: () -> Void
@@ -23,7 +24,32 @@ struct ImportScopeSheet: View {
             Text(fileName)
                 .font(JournalTheme.mono(12))
                 .foregroundStyle(JournalTheme.muted)
-                .padding(.bottom, 28)
+
+            if let preview {
+                Text("\(preview.messageCount) messages · \(preview.dateRangeLabel ?? "dates unknown")")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(JournalTheme.muted)
+                    .padding(.top, 8)
+            } else {
+                Text("Scanning mailbox…")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(JournalTheme.muted)
+                    .padding(.top, 8)
+            }
+
+            if let preview, preview.isLegacyArchive, selectedScope != .everything {
+                Text("This archive looks older than a year. Use Everything — narrower ranges will import nothing.")
+                    .font(JournalTheme.newsreaderItalic(14, weight: .light))
+                    .foregroundStyle(Color(red: 0.604, green: 0.420, blue: 0.369))
+                    .lineSpacing(4)
+                    .padding(.top, 16)
+            } else if let preview, !preview.wouldIncludeMessages(for: selectedScope) {
+                Text("“\(selectedScope.title)” likely matches no messages in this mailbox. Try a wider range.")
+                    .font(JournalTheme.newsreaderItalic(14, weight: .light))
+                    .foregroundStyle(Color(red: 0.604, green: 0.420, blue: 0.369))
+                    .lineSpacing(4)
+                    .padding(.top, 16)
+            }
 
             VStack(spacing: 0) {
                 ForEach(ImportScope.allCases) { scope in
@@ -34,6 +60,7 @@ struct ImportScopeSheet: View {
                     )
                 }
             }
+            .padding(.top, 24)
 
             if selectedScope.isLongRunning {
                 Text("Large imports run in the background. You can read existing entries while this finishes.")
