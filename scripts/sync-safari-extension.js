@@ -36,6 +36,11 @@ for (const target of targets) {
   targetManifest.version = sourceManifest.version;
   targetManifest.description = sourceManifest.description;
   targetManifest.content_scripts = sourceManifest.content_scripts;
+  if (sourceManifest.web_accessible_resources) {
+    targetManifest.web_accessible_resources = sourceManifest.web_accessible_resources;
+  } else {
+    delete targetManifest.web_accessible_resources;
+  }
   fs.writeFileSync(target.manifest, `${JSON.stringify(targetManifest, null, 2)}\n`);
   console.log(`Synced ${target.label} to ${path.relative(root, target.srcDir)} (${manifestName})`);
 }

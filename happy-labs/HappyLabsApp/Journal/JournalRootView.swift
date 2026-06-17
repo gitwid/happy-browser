@@ -22,8 +22,12 @@ struct JournalRootView: View {
         .sheet(item: importSheetBinding) { item in
             ImportScopeSheet(
                 fileName: item.url.lastPathComponent,
+                preview: appModel.mailboxPreview,
                 selectedScope: $appModel.selectedImportScope,
-                onCancel: { appModel.pendingImportURL = nil },
+                onCancel: {
+                    appModel.pendingImportURL = nil
+                    appModel.mailboxPreview = nil
+                },
                 onImport: {
                     let url = item.url
                     appModel.pendingImportURL = nil
@@ -41,6 +45,11 @@ struct JournalRootView: View {
                         .disabled(appModel.coherenceReport == nil)
                     Button("Export Coherence Markdown…") { exportCoherenceMarkdown() }
                         .disabled(appModel.coherenceReport == nil)
+                    Divider()
+                    Button("Clear all journal data…", role: .destructive) {
+                        confirmClearAllData()
+                    }
+                    .disabled(appModel.isBusy)
                 } label: {
                     Image(systemName: "ellipsis.circle")
                         .foregroundStyle(JournalTheme.muted)
@@ -147,6 +156,19 @@ struct JournalRootView: View {
         } catch {
             appModel.statusMessage = error.localizedDescription
         }
+    }
+
+    private func confirmClearAllData() {
+        let alert = NSAlert()
+        alert.messageText = "Clear all journal data?"
+        alert.informativeText = "Removes every imported mailbox, draft, and review decision from this device. This cannot be undone."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Clear Everything")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        appModel.clearAllJournalData()
+        openEntryID = nil
+        provenanceExpanded = false
     }
 }
 

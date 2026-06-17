@@ -119,6 +119,8 @@ public enum MboxParser {
             .filter { !$0.isEmpty }
         let date = parseDate(headers["date"])
 
+        let decodedBody = EmailBodyDecoder.decodeBody(headers: headers, body: body)
+
         return ParsedEmail(
             messageID: messageID,
             inReplyTo: normalizeMessageID(headers["in-reply-to"]),
@@ -127,8 +129,8 @@ public enum MboxParser {
             from: from,
             to: to.isEmpty ? ["unknown@example.com"] : to,
             date: date,
-            bodyPlain: body.trimmingCharacters(in: .whitespacesAndNewlines),
-            bodyHTML: nil
+            bodyPlain: decodedBody.plain,
+            bodyHTML: decodedBody.html
         )
     }
 
@@ -153,6 +155,10 @@ public enum MboxParser {
             }
         }
         return ISO8601DateFormatter().date(from: value)
+    }
+
+    public static func parseHeaderDate(_ value: String) -> Date? {
+        parseDate(value.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 }
 

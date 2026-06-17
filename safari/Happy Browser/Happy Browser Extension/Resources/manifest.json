@@ -22,16 +22,6 @@
         "*://*.wikipedia.org/*"
       ],
       "js": [
-        "src/wikipedia-popups-guard.js"
-      ],
-      "run_at": "document_start",
-      "world": "MAIN"
-    },
-    {
-      "matches": [
-        "*://*.wikipedia.org/*"
-      ],
-      "js": [
         "src/wikipedia-link-preview.js"
       ],
       "run_at": "document_start"
@@ -66,5 +56,15 @@
   },
   "options_ui": {
     "page": "src/options.html"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/wikipedia-popups-guard.js"
+      ],
+      "matches": [
+        "*://*.wikipedia.org/*"
+      ]
+    }
+  ]
 }

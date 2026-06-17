@@ -42,13 +42,21 @@ struct JournalEntryDetail: Identifiable {
 
 enum JournalPresentationBuilder {
     static func rows(from entries: [JournalEntryEntity], context: NSManagedObjectContext) -> [JournalEntryRow] {
+        let storyIDs = entries.map(\.storyCandidateID)
+        let stories = fetchStoryCandidates(ids: storyIDs, context: context)
+        let storyByID = Dictionary(uniqueKeysWithValues: stories.map { ($0.provenanceID, $0) })
+        let threadIDs = stories.map(\.emailThreadID)
+        let threads = fetchThreads(ids: threadIDs, context: context)
+        let threadByID = Dictionary(uniqueKeysWithValues: threads.map { ($0.provenanceID, $0) })
+
         let sorted = entries.sorted { lhs, rhs in
-            sortKey(for: lhs, context: context) < sortKey(for: rhs, context: context)
+            sortKey(for: lhs, storyByID: storyByID, threadByID: threadByID) <
+                sortKey(for: rhs, storyByID: storyByID, threadByID: threadByID)
         }
         return sorted.enumerated().map { index, entry in
             let meta = statusMeta(entry.entryStatus)
-            let story = fetchStoryCandidate(id: entry.storyCandidateID, context: context)
-            let thread = story.flatMap { fetchThread(id: $0.emailThreadID, context: context) }
+            let story = storyByID[entry.storyCandidateID]
+            let thread = story.flatMap { threadByID[$0.emailThreadID] }
             return JournalEntryRow(
                 id: entry.provenanceID,
                 number: String(format: "%02d", index + 1),
@@ -101,9 +109,13 @@ enum JournalPresentationBuilder {
         return "\(entries.count) ENTRIES · \(archived) ARCHIVED · \(review) IN REVIEW"
     }
 
-    private static func sortKey(for entry: JournalEntryEntity, context: NSManagedObjectContext) -> Date {
-        if let story = fetchStoryCandidate(id: entry.storyCandidateID, context: context),
-           let thread = fetchThread(id: story.emailThreadID, context: context),
+    private static func sortKey(
+        for entry: JournalEntryEntity,
+        storyByID: [UUID: StoryCandidateEntity],
+        threadByID: [UUID: EmailThreadEntity]
+    ) -> Date {
+        if let story = storyByID[entry.storyCandidateID],
+           let thread = threadByID[story.emailThreadID],
            let latest = thread.latestDate {
             return latest
         }
@@ -304,17 +316,25 @@ enum JournalPresentationBuilder {
     }
 
     private static func fetchStoryCandidate(id: UUID, context: NSManagedObjectContext) -> StoryCandidateEntity? {
+        fetchStoryCandidates(ids: [id], context: context).first
+    }
+
+    private static func fetchStoryCandidates(ids: [UUID], context: NSManagedObjectContext) -> [StoryCandidateEntity] {
+        guard !ids.isEmpty else { return [] }
         let request = NSFetchRequest<StoryCandidateEntity>(entityName: "StoryCandidateEntity")
-        request.predicate = NSPredicate(format: "provenanceID == %@", id as CVarArg)
-        request.fetchLimit = 1
-        return try? context.fetch(request).first
+        request.predicate = NSPredicate(format: "provenanceID IN %@", ids)
+        return (try? context.fetch(request)) ?? []
     }
 
     private static func fetchThread(id: UUID, context: NSManagedObjectContext) -> EmailThreadEntity? {
+        fetchThreads(ids: [id], context: context).first
+    }
+
+    private static func fetchThreads(ids: [UUID], context: NSManagedObjectContext) -> [EmailThreadEntity] {
+        guard !ids.isEmpty else { return [] }
         let request = NSFetchRequest<EmailThreadEntity>(entityName: "EmailThreadEntity")
-        request.predicate = NSPredicate(format: "provenanceID == %@", id as CVarArg)
-        request.fetchLimit = 1
-        return try? context.fetch(request).first
+        request.predicate = NSPredicate(format: "provenanceID IN %@", ids)
+        return (try? context.fetch(request)) ?? []
     }
 
     private static func fetchMboxImport(for thread: EmailThreadEntity, context: NSManagedObjectContext) -> MboxImportEntity? {

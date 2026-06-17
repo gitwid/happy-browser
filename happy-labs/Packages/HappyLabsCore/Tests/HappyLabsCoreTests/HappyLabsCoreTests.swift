@@ -157,6 +157,90 @@ final class MboxParserTests: XCTestCase {
         XCTAssertEqual(messages[0].subject, "You’re confirmed for a WWDC26 Group Interview")
     }
 
+    func testDecodesMultipartQuotedPrintableBody() throws {
+        let mbox = """
+From notifications@facebookmail.com Mon Jun 16 12:00:00 2026
+From: notifications@facebookmail.com
+To: user@example.com
+Subject: Facebook notification
+Message-ID: <fb-1@example.com>
+Date: Mon, 16 Jun 2026 12:00:00 +0000
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="fb_boundary_123"
+
+--fb_boundary_123
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+Hi there,=0A=0AYour friend posted an update.=3D=3D See it here.=0A
+--fb_boundary_123
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<p>Hi there,</p><p>Your friend posted an update.</p>
+--fb_boundary_123--
+
+"""
+        let messages = try MboxParser.parse(text: mbox)
+        XCTAssertEqual(messages.count, 1)
+        let body = messages[0].bodyPlain
+        XCTAssertFalse(body.contains("=3D"))
+        XCTAssertFalse(body.contains("fb_boundary_123"))
+        XCTAssertTrue(body.contains("Hi there"))
+        XCTAssertTrue(body.contains("Your friend posted an update."))
+        XCTAssertTrue(body.contains("=="))
+    }
+
+    func testMailboxPreviewDetectsLegacyArchive() throws {
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("legacy-\(UUID().uuidString).mbox")
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+        try """
+        From old@example.com Mon Jun 16 12:00:00 2017
+        From: old@example.com
+        To: bob@example.com
+        Subject: Old
+        Message-ID: <old@example.com>
+        Date: Mon, 16 Jun 2017 12:00:00 +0000
+
+        Old body
+
+        """.write(to: tempURL, atomically: true, encoding: .utf8)
+
+        let preview = try MailboxPreviewReader.preview(at: tempURL)
+        XCTAssertEqual(preview.messageCount, 1)
+        XCTAssertTrue(preview.isLegacyArchive)
+        XCTAssertFalse(preview.wouldIncludeMessages(for: .lastMonth))
+    }
+
+    func testDataResetClearsStore() throws {
+        let persistence = PersistenceController(inMemory: true)
+        let orchestrator = PipelineOrchestrator(
+            persistence: persistence,
+            summarizationProvider: ExtractiveFallbackProvider()
+        )
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("reset-\(UUID().uuidString).mbox")
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+        try """
+        From alice@example.com Mon Jun 16 12:00:00 2026
+        From: alice@example.com
+        To: bob@example.com
+        Subject: Reset me
+        Message-ID: <reset@example.com>
+        Date: Mon, 16 Jun 2026 12:00:00 +0000
+
+        Body
+
+        """.write(to: tempURL, atomically: true, encoding: .utf8)
+
+        let importOutput = try orchestrator.importMbox(at: tempURL, scope: .everything)
+        _ = try orchestrator.runFullPipeline(mboxImportID: importOutput.importEntityID)
+        let repo = EntityRepository(context: persistence.container.viewContext)
+        XCTAssertFalse(try repo.fetchJournalEntries().isEmpty)
+
+        try DataResetService(persistence: persistence).clearAllData()
+        XCTAssertTrue(try repo.fetchJournalEntries().isEmpty)
+    }
+
     func testImportsMailAppLiveMailboxBundle() throws {
         let persistence = PersistenceController(inMemory: true)
         let orchestrator = PipelineOrchestrator(
