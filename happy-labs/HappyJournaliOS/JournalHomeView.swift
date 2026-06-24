@@ -5,12 +5,16 @@ struct JournalHomeView: View {
     @EnvironmentObject private var model: JournalModel
     @State private var selectedEntry: JournalEntrySnapshot?
     @State private var selectedSource: ContinuitySourceSnapshot?
+    @State private var showRecoveryBuilder = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     HeaderPanel(statusLine: model.statusLine)
+                    RecoveryBuilderPanel {
+                        showRecoveryBuilder = true
+                    }
                     TestBedPanel(message: model.lastFixtureMessage)
                     JournalSection(entries: model.entries, selectedEntry: $selectedEntry)
                     ContextSection(sources: model.contextSources, selectedSource: $selectedSource)
@@ -39,6 +43,9 @@ struct JournalHomeView: View {
             .navigationDestination(item: $selectedSource) { source in
                 ContinuitySourceDetailView(source: source)
             }
+            .navigationDestination(isPresented: $showRecoveryBuilder) {
+                RecoverabilityBuilderView()
+            }
         }
     }
 }
@@ -60,6 +67,278 @@ private struct HeaderPanel: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .background(.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+private struct RecoveryBuilderPanel: View {
+    let onOpen: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "sparkle.magnifyingglass")
+                    .font(.title2)
+                    .foregroundStyle(.blue)
+                    .frame(width: 34, height: 34)
+                    .liquidGlassIcon()
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Recoverability Test Builder")
+                        .font(.title3.weight(.semibold))
+                    Text("Capture the memory baseline, pick artifacts, and generate a reusable test packet.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Button {
+                onOpen()
+            } label: {
+                Label("Create recovery packet", systemImage: "folder.badge.plus")
+                    .frame(maxWidth: .infinity)
+            }
+            .liquidGlassProminentButton()
+            .accessibilityIdentifier("openRecoverabilityBuilderButton")
+        }
+        .glassPanel(prominence: .primary)
+    }
+}
+
+private struct RecoverabilityBuilderView: View {
+    @StateObject private var harness = RecoveryHarnessModel()
+    @State private var isPickingFiles = false
+    @State private var showPreview = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Recoverability")
+                        .font(.largeTitle.weight(.semibold))
+                    Text("Write the checksum first. Pick artifacts only after the memory baseline exists.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .glassPanel(prominence: .primary)
+
+                RecoverySection(title: "Story") {
+                    TextField("Story name", text: $harness.storyName)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("recoveryStoryNameField")
+                }
+
+                RecoverySection(title: "Memory Baseline") {
+                    MultilinePromptField(
+                        title: "Two paragraphs from memory",
+                        text: $harness.memoryBaseline,
+                        minHeight: 170,
+                        accessibilityIdentifier: "memoryBaselineEditor"
+                    )
+                }
+
+                RecoverySection(title: "Recovery Checks") {
+                    MultilinePromptField(
+                        title: "One must-recover item per line",
+                        text: $harness.mustRecover,
+                        minHeight: 110,
+                        accessibilityIdentifier: "mustRecoverEditor"
+                    )
+                    MultilinePromptField(
+                        title: "Known turning point",
+                        text: $harness.knownTurningPoint,
+                        minHeight: 80,
+                        accessibilityIdentifier: "turningPointEditor"
+                    )
+                    MultilinePromptField(
+                        title: "Known resolution",
+                        text: $harness.knownResolution,
+                        minHeight: 80,
+                        accessibilityIdentifier: "resolutionEditor"
+                    )
+                    MultilinePromptField(
+                        title: "Emotional / practical meaning",
+                        text: $harness.meaningNotes,
+                        minHeight: 100,
+                        accessibilityIdentifier: "meaningNotesEditor"
+                    )
+                    MultilinePromptField(
+                        title: "Things the system must not invent",
+                        text: $harness.mustNotInvent,
+                        minHeight: 100,
+                        accessibilityIdentifier: "mustNotInventEditor"
+                    )
+                }
+
+                RecoverySection(title: "Artifacts") {
+                    Button {
+                        isPickingFiles = true
+                    } label: {
+                        Label("Pick artifacts", systemImage: "doc.badge.plus")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .liquidGlassSecondaryButton()
+                    .accessibilityIdentifier("pickArtifactsButton")
+
+                    if harness.artifacts.isEmpty {
+                        Text("No artifacts selected yet. This is fine until the baseline is written.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(harness.artifacts) { artifact in
+                            HStack(spacing: 10) {
+                                Image(systemName: "doc")
+                                    .foregroundStyle(.secondary)
+                                Text(artifact.displayName)
+                                    .font(.caption)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Spacer()
+                                Button {
+                                    harness.removeArtifact(artifact)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(.secondary)
+                            }
+                            .padding(10)
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+                    }
+                }
+
+                RecoverySection(title: "Generate") {
+                    Text(harness.statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("recoveryStatusMessage")
+
+                    Button {
+                        createPacket()
+                    } label: {
+                        Label("Create packet", systemImage: "checkmark.seal")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .disabled(!harness.canCreatePacket)
+                    .liquidGlassProminentButton()
+                    .accessibilityIdentifier("createRecoveryPacketButton")
+
+                    Button {
+                        showPreview.toggle()
+                    } label: {
+                        Label(showPreview ? "Hide baseline preview" : "Preview baseline", systemImage: "text.page")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .liquidGlassSecondaryButton()
+                    .accessibilityIdentifier("previewRecoveryBaselineButton")
+
+                    if let packet = harness.lastPacket {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Created packet")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Text(packet.folderURL.path)
+                                .font(.caption.monospaced())
+                                .textSelection(.enabled)
+                                .accessibilityIdentifier("recoveryPacketPath")
+                        }
+                    }
+
+                    if showPreview {
+                        Text(harness.previewMarkdown)
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 18)
+            .padding(.bottom, 40)
+        }
+        .background(recoverabilityBackground)
+        .navigationTitle("Builder")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    harness.resetDraft()
+                } label: {
+                    Label("Reset", systemImage: "arrow.counterclockwise")
+                }
+                .accessibilityIdentifier("resetRecoveryBuilderButton")
+            }
+        }
+        .fileImporter(
+            isPresented: $isPickingFiles,
+            allowedContentTypes: [.item],
+            allowsMultipleSelection: true
+        ) { result in
+            switch result {
+            case let .success(urls):
+                harness.addArtifacts(urls)
+            case let .failure(error):
+                harness.statusMessage = "File picker failed: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private var recoverabilityBackground: some View {
+        LinearGradient(
+            colors: [
+                Color(.systemGroupedBackground),
+                Color.blue.opacity(0.12),
+                Color.green.opacity(0.10)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .ignoresSafeArea()
+    }
+
+    private func createPacket() {
+        do {
+            _ = try harness.createPacket()
+        } catch {
+            harness.statusMessage = "Packet creation failed: \(error.localizedDescription)"
+        }
+    }
+}
+
+private struct RecoverySection<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+            content
+        }
+        .glassPanel(prominence: .secondary)
+    }
+}
+
+private struct MultilinePromptField: View {
+    let title: String
+    @Binding var text: String
+    let minHeight: CGFloat
+    let accessibilityIdentifier: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            TextEditor(text: $text)
+                .frame(minHeight: minHeight)
+                .padding(8)
+                .scrollContentBackground(.hidden)
+                .background(.background.opacity(0.72), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .accessibilityIdentifier(accessibilityIdentifier)
+        }
     }
 }
 
@@ -470,6 +749,51 @@ private extension View {
             .padding(16)
             .background(.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
+
+    func glassPanel(prominence: GlassProminence) -> some View {
+        let radius = prominence == .primary ? 24.0 : 18.0
+        return self
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(prominence == .primary ? 20 : 16)
+            .liquidGlassBackground(radius: radius, interactive: false)
+    }
+
+    func liquidGlassIcon() -> some View {
+        self
+            .liquidGlassBackground(radius: 12, interactive: false)
+    }
+
+    func liquidGlassProminentButton() -> some View {
+        self
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .liquidGlassBackground(radius: 16, interactive: true)
+    }
+
+    func liquidGlassSecondaryButton() -> some View {
+        self
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .liquidGlassBackground(radius: 16, interactive: true)
+    }
+
+    @ViewBuilder
+    private func liquidGlassBackground(radius: CGFloat, interactive: Bool) -> some View {
+        if #available(iOS 26.0, *) {
+            if interactive {
+                self.glassEffect(.regular.interactive(), in: .rect(cornerRadius: radius))
+            } else {
+                self.glassEffect(.regular, in: .rect(cornerRadius: radius))
+            }
+        } else {
+            self.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+        }
+    }
+}
+
+private enum GlassProminence {
+    case primary
+    case secondary
 }
 
 private extension JournalEntryStatus {

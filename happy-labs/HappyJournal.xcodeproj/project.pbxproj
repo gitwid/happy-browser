@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		1890390FE8177E6DC1CDF153 /* JournalHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F45C7D0E539DBD16E43E03B0 /* JournalHomeView.swift */; };
 		6CA064FCEA5EBB0C8E12057C /* HappyJournalUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BAB1A14E324C48242280F56 /* HappyJournalUITests.swift */; };
+		B7C5DBF954A9DF230601B319 /* RecoverabilityHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF78C3A58D29C21E114C0351 /* RecoverabilityHarness.swift */; };
 		C3380A0AF5530B1C19C68A0B /* HappyLabsCore in Frameworks */ = {isa = PBXBuildFile; productRef = B742531CEC36E33277A7CEC4 /* HappyLabsCore */; };
 		E466AB098B0376409909D5F2 /* HappyJournalApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D69D9587C6495913C3DD952D /* HappyJournalApp.swift */; };
 /* End PBXBuildFile section */
@@ -28,6 +29,7 @@
 		4C7A3F38DF1AAA72369E52B5 /* HappyJournal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HappyJournal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		92FB539978A49348E25866AF /* HappyLabsCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = HappyLabsCore; path = Packages/HappyLabsCore; sourceTree = SOURCE_ROOT; };
 		D69D9587C6495913C3DD952D /* HappyJournalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappyJournalApp.swift; sourceTree = "<group>"; };
+		DF78C3A58D29C21E114C0351 /* RecoverabilityHarness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoverabilityHarness.swift; sourceTree = "<group>"; };
 		E3D6254222381BAC7AB25D76 /* HappyJournalUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HappyJournalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F45C7D0E539DBD16E43E03B0 /* JournalHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalHomeView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -84,6 +86,7 @@
 			children = (
 				D69D9587C6495913C3DD952D /* HappyJournalApp.swift */,
 				F45C7D0E539DBD16E43E03B0 /* JournalHomeView.swift */,
+				DF78C3A58D29C21E114C0351 /* RecoverabilityHarness.swift */,
 			);
 			path = HappyJournaliOS;
 			sourceTree = "<group>";
@@ -175,6 +178,7 @@
 			files = (
 				E466AB098B0376409909D5F2 /* HappyJournalApp.swift in Sources */,
 				1890390FE8177E6DC1CDF153 /* JournalHomeView.swift in Sources */,
+				B7C5DBF954A9DF230601B319 /* RecoverabilityHarness.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
