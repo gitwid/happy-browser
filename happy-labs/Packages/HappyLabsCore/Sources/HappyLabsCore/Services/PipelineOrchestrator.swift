@@ -4,6 +4,7 @@ import Foundation
 public struct PipelineOrchestrator: Sendable {
     public let persistence: PersistenceController
     public let summarizationProvider: SummarizationProvider
+    private let rollbackService: ImportRollbackService
 
     public init(
         persistence: PersistenceController = .shared,
@@ -11,6 +12,11 @@ public struct PipelineOrchestrator: Sendable {
     ) {
         self.persistence = persistence
         self.summarizationProvider = summarizationProvider
+        self.rollbackService = ImportRollbackService(persistence: persistence)
+    }
+
+    public func rollbackImport(mboxImportID: UUID) throws {
+        try rollbackService.rollback(mboxImportID: mboxImportID)
     }
 
     public func importMbox(
@@ -103,12 +109,42 @@ public struct PipelineOrchestrator: Sendable {
         }
     }
 
+    public func ingestBrowserContext(_ input: BrowserContextIngestInput) throws -> BrowserContextIngestOutput {
+        try run { context in
+            let codecContext = CodecContext(
+                repository: EntityRepository(context: context),
+                summarizationProvider: summarizationProvider
+            )
+            let output = try BrowserContextIngestCodec().transform(input, context: codecContext)
+            try persistence.save(context)
+            return output
+        }
+    }
+
+    @discardableResult
+    public func attachContinuitySource(
+        sourceID: UUID,
+        toJournalEntryID journalEntryID: UUID
+    ) throws -> Bool {
+        try run { context in
+            let repo = EntityRepository(context: context)
+            let didAttach = try repo.attachContinuitySource(
+                sourceID: sourceID,
+                toJournalEntryID: journalEntryID
+            )
+            try persistence.save(context)
+            return didAttach
+        }
+    }
+
     private func run<T>(_ work: (NSManagedObjectContext) throws -> T) throws -> T {
+        try ImportCancellation.throwIfCancelled()
         let context = persistence.newBackgroundContext()
         var result: Result<T, Error>!
         context.performAndWait {
             result = Result { try work(context) }
         }
+        try ImportCancellation.throwIfCancelled()
         return try result.get()
     }
 }
@@ -194,6 +230,8 @@ public struct ExportedJournalEntry: Codable, Equatable {
     public let contentFingerprint: String
     public let journal: JournalPayload
     public let origins: OriginsPayload
+    public let contextSources: [ContinuitySourcePayload]
+    public let humanDecisions: [HumanDecisionPayload]
 
     public struct JournalPayload: Codable, Equatable {
         public let title: String
@@ -204,6 +242,28 @@ public struct ExportedJournalEntry: Codable, Equatable {
     public struct OriginsPayload: Codable, Equatable {
         public let storyCandidateID: UUID
         public let originRef: UUID
+    }
+
+    public struct ContinuitySourcePayload: Codable, Equatable {
+        public let provenanceID: UUID
+        public let kind: String
+        public let state: String
+        public let sourceClass: String
+        public let title: String
+        public let bodyText: String
+        public let sourceURL: String?
+        public let capturedAt: Date
+        public let metadata: [String: String]
+        public let originRef: UUID
+        public let codecPath: [CodecPathEntry]
+        public let contentFingerprint: String
+    }
+
+    public struct HumanDecisionPayload: Codable, Equatable {
+        public let provenanceID: UUID
+        public let action: String
+        public let decidedAt: Date
+        public let contentFingerprint: String
     }
 }
 
@@ -239,6 +299,18 @@ public struct ExportService: Sendable {
             "- contentFingerprint: `\(payload.contentFingerprint)`",
             "- storyCandidateID: `\(payload.origins.storyCandidateID.uuidString)`"
         ]
+        if !payload.contextSources.isEmpty {
+            lines.append("- attachedContextSources:")
+            for source in payload.contextSources {
+                lines.append("  - `\(source.provenanceID.uuidString)` \(source.kind) · \(source.state) · \(source.contentFingerprint)")
+            }
+        }
+        if !payload.humanDecisions.isEmpty {
+            lines.append("- humanDecisions:")
+            for decision in payload.humanDecisions {
+                lines.append("  - `\(decision.provenanceID.uuidString)` \(decision.action) · \(decision.contentFingerprint)")
+            }
+        }
         for step in payload.codecPath {
             lines.append("- codec: \(step.codecName) @ \(step.codecVersion)")
         }
@@ -278,7 +350,35 @@ public struct ExportService: Sendable {
             origins: .init(
                 storyCandidateID: entry.storyCandidateID,
                 originRef: entry.originRef
-            )
+            ),
+            contextSources: entry.attachedSources
+                .sorted { $0.capturedAt < $1.capturedAt }
+                .map { source in
+                    .init(
+                        provenanceID: source.provenanceID,
+                        kind: source.kind.rawValue,
+                        state: source.state.rawValue,
+                        sourceClass: source.sourceClass.rawValue,
+                        title: source.title,
+                        bodyText: source.bodyText,
+                        sourceURL: source.sourceURL,
+                        capturedAt: source.capturedAt,
+                        metadata: source.metadata,
+                        originRef: source.originRef,
+                        codecPath: source.codecPath,
+                        contentFingerprint: source.contentFingerprint
+                    )
+                },
+            humanDecisions: ((try? EntityRepository(context: persistence.container.viewContext)
+                .fetchHumanDecisions(journalEntryID: entry.provenanceID)) ?? [])
+                .map { decision in
+                    .init(
+                        provenanceID: decision.provenanceID,
+                        action: decision.action,
+                        decidedAt: decision.decidedAt,
+                        contentFingerprint: decision.contentFingerprint
+                    )
+                }
         )
     }
 }

@@ -95,6 +95,43 @@ struct ProvenancePlateView: View {
                 Rectangle().fill(Color.black.opacity(0.12)).frame(height: 1)
             }
 
+            if !detail.attachedContextSources.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("ATTACHED CONTEXT")
+                        .font(JournalTheme.capsLabel(9.5))
+                        .tracking(2)
+                        .foregroundStyle(Color(red: 0.514, green: 0.522, blue: 0.557))
+                    ForEach(detail.attachedContextSources) { source in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(source.title)
+                                    .font(JournalTheme.mono(12.5))
+                                    .foregroundStyle(Color(red: 0.247, green: 0.251, blue: 0.275))
+                                Spacer(minLength: 12)
+                                Text("\(source.kind) · \(source.state)")
+                                    .font(JournalTheme.capsLabel(9))
+                                    .tracking(1.4)
+                                    .foregroundStyle(Color(red: 0.514, green: 0.522, blue: 0.557))
+                            }
+                            if let url = source.sourceURL {
+                                Text(url)
+                                    .font(.system(size: 11.5))
+                                    .foregroundStyle(Color(red: 0.443, green: 0.451, blue: 0.486))
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
+                            Text(source.shortFingerprint)
+                                .font(JournalTheme.mono(10.5))
+                                .foregroundStyle(Color(red: 0.604, green: 0.612, blue: 0.643))
+                        }
+                    }
+                }
+                .padding(.top, 18)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.black.opacity(0.12)).frame(height: 1)
+                }
+            }
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("CONTENT FINGERPRINT — SHA-256")
                     .font(JournalTheme.capsLabel(9.5))

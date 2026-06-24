@@ -21,11 +21,16 @@ public enum ImportScope: String, CaseIterable, Sendable, Equatable, Identifiable
 
     public var subtitle: String {
         switch self {
-        case .lastWeek: return "Quick sample — usually finishes in seconds."
-        case .lastMonth: return "Recommended first import."
-        case .lastThreeMonths: return "A season of correspondence."
-        case .lastYear: return "May take several minutes on a large mailbox."
-        case .everything: return "Full archive — can take a long time. Keep the app open."
+        case .lastWeek:
+            return "Keeps messages from the past 7 days. The mailbox is still scanned in full."
+        case .lastMonth:
+            return "Keeps messages from the past month. Recommended first import."
+        case .lastThreeMonths:
+            return "Keeps messages from the past 3 months. The mailbox is still scanned in full."
+        case .lastYear:
+            return "Keeps messages from the past year. Large mailboxes may take several minutes."
+        case .everything:
+            return "Full archive — can take a long time on large mailboxes."
         }
     }
 

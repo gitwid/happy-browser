@@ -45,19 +45,33 @@ public enum MboxParser {
     }
 
     public static func parse(text: String) throws -> [ParsedEmail] {
+        try parse(text: text, scope: .everything).messages
+    }
+
+    public static func parse(text: String, scope: ImportScope) throws -> ScopedMailboxLoad {
         var messages: [ParsedEmail] = []
+        var totalParsedCount = 0
+        var newestParsedDate: Date?
         var currentLines: [String] = []
 
         func flush() throws {
             guard !currentLines.isEmpty else { return }
+            try ImportCancellation.throwIfCancelled()
             let raw = currentLines.joined(separator: "\n")
             if let parsed = parseRFC822(raw) {
-                messages.append(parsed)
+                totalParsedCount += 1
+                if let date = parsed.date {
+                    newestParsedDate = max(newestParsedDate ?? date, date)
+                }
+                if scope.includes(messageDate: parsed.date) {
+                    messages.append(parsed)
+                }
             }
             currentLines.removeAll(keepingCapacity: true)
         }
 
         for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            try ImportCancellation.throwIfCancelled()
             let lineString = String(line)
             if lineString.hasPrefix(fromLinePrefix), !currentLines.isEmpty {
                 try flush()
@@ -67,7 +81,11 @@ public enum MboxParser {
             }
         }
         try flush()
-        return messages
+        return ScopedMailboxLoad(
+            messages: messages,
+            totalParsedCount: totalParsedCount,
+            newestParsedDate: newestParsedDate
+        )
     }
 
     public static func parseRFC822(_ raw: String) -> ParsedEmail? {

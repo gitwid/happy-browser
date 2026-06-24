@@ -15,6 +15,23 @@ public enum HumanDecisionAction: String, CaseIterable, Sendable {
     case discard
 }
 
+public enum ContinuitySourceKind: String, CaseIterable, Codable, Sendable {
+    case email
+    case browserContext
+    case calendar
+    case note
+    case file
+    case image
+}
+
+public enum ContinuitySourceState: String, CaseIterable, Codable, Sendable {
+    case captured
+    case attached
+    case journaled
+    case archived
+    case discarded
+}
+
 public enum HappyLabsModel {
     public static let modelName = "HappyLabs"
 
@@ -89,6 +106,26 @@ public enum HappyLabsModel {
             indexes: [("byStatus", ["status"]), ("bySourceClassJournal", ["sourceClassRaw"])]
         )
 
+        let continuitySource = makeEntity(
+            name: "ContinuitySource",
+            provenance: true,
+            extra: [
+                attr("kindRaw", .stringAttributeType),
+                attr("title", .stringAttributeType),
+                attr("bodyText", .stringAttributeType),
+                attr("sourceURL", .stringAttributeType, optional: true),
+                attr("capturedAt", .dateAttributeType),
+                attr("metadataJSON", .stringAttributeType),
+                attr("stateRaw", .stringAttributeType)
+            ],
+            indexes: [
+                ("byContinuitySourceState", ["stateRaw"]),
+                ("byContinuitySourceKind", ["kindRaw"]),
+                ("byContinuitySourceClass", ["sourceClassRaw"])
+            ]
+        )
+        connectJournalEntries(journalEntry, toContinuitySources: continuitySource)
+
         let transformationLog = makeEntity(
             name: "TransformationLogEntity",
             provenance: true,
@@ -134,12 +171,38 @@ public enum HappyLabsModel {
             emailThread,
             storyCandidate,
             journalEntry,
+            continuitySource,
             transformationLog,
             humanDecision,
             discardedArtifact
         ]
 
         return model
+    }
+
+    private static func connectJournalEntries(
+        _ journalEntry: NSEntityDescription,
+        toContinuitySources continuitySource: NSEntityDescription
+    ) {
+        let attachedSources = NSRelationshipDescription()
+        attachedSources.name = "attachedSources"
+        attachedSources.destinationEntity = continuitySource
+        attachedSources.minCount = 0
+        attachedSources.maxCount = 0
+        attachedSources.deleteRule = .nullifyDeleteRule
+
+        let attachedEntries = NSRelationshipDescription()
+        attachedEntries.name = "attachedEntries"
+        attachedEntries.destinationEntity = journalEntry
+        attachedEntries.minCount = 0
+        attachedEntries.maxCount = 0
+        attachedEntries.deleteRule = .nullifyDeleteRule
+
+        attachedSources.inverseRelationship = attachedEntries
+        attachedEntries.inverseRelationship = attachedSources
+
+        journalEntry.properties.append(attachedSources)
+        continuitySource.properties.append(attachedEntries)
     }
 
     private static func provenanceAttributes() -> [NSAttributeDescription] {

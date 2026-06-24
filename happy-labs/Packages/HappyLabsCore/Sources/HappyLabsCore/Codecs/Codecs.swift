@@ -55,30 +55,38 @@ public struct MboxImportCodec: HappyCodec {
     public func transform(_ input: MboxImportInput, context: CodecContext) throws -> MboxImportOutput {
         let start = Date()
         let source = try MailAppMailboxReader.detectSource(at: input.fileURL)
-        let allMessages: [ParsedEmail]
+        let loaded: ScopedMailboxLoad
         switch source {
         case .mboxFile:
             let data = try Data(contentsOf: input.fileURL)
-            allMessages = try MboxParser.parse(data: data)
+            try ImportCancellation.throwIfCancelled()
+            guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else {
+                throw MboxParserError.unreadableData
+            }
+            loaded = try MboxParser.parse(text: text, scope: input.scope)
         case .mailAppExportFolder:
             let payloadURL = input.fileURL.appendingPathComponent("mbox")
             let data = try Data(contentsOf: payloadURL)
-            allMessages = try MboxParser.parse(data: data)
+            try ImportCancellation.throwIfCancelled()
+            guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else {
+                throw MboxParserError.unreadableData
+            }
+            loaded = try MboxParser.parse(text: text, scope: input.scope)
         case .mailAppLiveMailbox:
-            allMessages = try MailAppMailboxReader.loadMessages(from: input.fileURL)
+            loaded = try MailAppMailboxReader.loadMessages(from: input.fileURL, scope: input.scope)
         }
-        let messages = allMessages.filter { input.scope.includes(messageDate: $0.date) }
+        let messages = loaded.messages
+        let allMessagesCount = loaded.totalParsedCount
 
         guard !messages.isEmpty else {
-            let newest = allMessages.compactMap(\.date).max()
             throw MboxImportError.noMessagesInScope(
                 scopeTitle: input.scope.title,
-                totalParsed: allMessages.count,
-                newestMessageDate: newest
+                totalParsed: allMessagesCount,
+                newestMessageDate: loaded.newestParsedDate
             )
         }
 
-        let inputHash = ContentFingerprint.hash(input.fileDisplayName, String(allMessages.count), input.scope.rawValue, Self.sourceLabel(source))
+        let inputHash = ContentFingerprint.hash(input.fileDisplayName, String(allMessagesCount), input.scope.rawValue, Self.sourceLabel(source))
         let importProvenanceID = UUID()
         let importProvenance = ProvenanceFields(
             provenanceID: importProvenanceID,
@@ -96,6 +104,7 @@ public struct MboxImportCodec: HappyCodec {
 
         var rawEmailIDs: [UUID] = []
         for message in messages {
+            try ImportCancellation.throwIfCancelled()
             let fingerprint = try ContentFingerprint.hashJSON(message)
             let provenance = importProvenance.child(
                 appendCodec: nil,
@@ -130,7 +139,7 @@ public struct MboxImportCodec: HappyCodec {
             importEntityID: importEntity.provenanceID,
             rawEmailIDs: rawEmailIDs,
             messageCount: messages.count,
-            totalParsedCount: allMessages.count,
+            totalParsedCount: allMessagesCount,
             scope: input.scope
         )
     }
@@ -260,6 +269,7 @@ public struct ThreadClusterCodec: HappyCodec {
         var orphanCount = 0
 
         for cluster in clusters {
+            try ImportCancellation.throwIfCancelled()
             let ids = cluster.map(\.provenanceID)
             let subject = Self.normalizeSubject(cluster.first?.subject ?? "(no subject)")
             let participants = Set(cluster.map(\.fromAddress)).sorted().joined(separator: ", ")
@@ -356,6 +366,7 @@ public struct StoryExtractionCodec: HappyCodec {
 
         var storyIDs: [UUID] = []
         for thread in threads {
+            try ImportCancellation.throwIfCancelled()
             let fetchedEmails = try fetchEmailsForThread(thread: thread, repository: context.repository)
             let threadContext = EmailThreadContext(
                 threadID: thread.provenanceID,
@@ -439,6 +450,7 @@ public struct JournalDraftCodec: HappyCodec {
 
         var journalIDs: [UUID] = []
         for candidate in candidates {
+            try ImportCancellation.throwIfCancelled()
             let body = renderMarkdown(candidate: candidate)
             let fingerprint = ContentFingerprint.hash(candidate.title, body)
             let provenance = ProvenanceFields(
@@ -501,5 +513,95 @@ public struct JournalDraftCodec: HappyCodec {
         lines.append("---")
         lines.append("_Draft from email thread. Review before archiving._")
         return lines.joined(separator: "\n")
+    }
+}
+
+public struct BrowserContextIngestInput: Sendable {
+    public let sourceURL: String
+    public let title: String
+    public let bodyText: String
+    public let capturedAt: Date
+    public let metadata: [String: String]
+
+    public init(
+        sourceURL: String,
+        title: String,
+        bodyText: String,
+        capturedAt: Date = Date(),
+        metadata: [String: String] = [:]
+    ) {
+        self.sourceURL = sourceURL
+        self.title = title
+        self.bodyText = bodyText
+        self.capturedAt = capturedAt
+        self.metadata = metadata
+    }
+}
+
+public struct BrowserContextIngestOutput: Sendable {
+    public let continuitySourceID: UUID
+    public let contentFingerprint: String
+}
+
+public struct BrowserContextIngestCodec: HappyCodec {
+    public let name = "BrowserContextIngestCodec"
+    public let version = "0.1.0"
+
+    public init() {}
+
+    public func transform(_ input: BrowserContextIngestInput, context: CodecContext) throws -> BrowserContextIngestOutput {
+        let start = Date()
+        let fingerprint = Self.fingerprint(
+            sourceURL: input.sourceURL,
+            title: input.title,
+            bodyText: input.bodyText
+        )
+        let codecEntry = CodecPathEntry(
+            codecName: name,
+            codecVersion: version,
+            inputHash: fingerprint,
+            outputHash: fingerprint
+        )
+        let provenanceID = UUID()
+        let provenance = ProvenanceFields(
+            provenanceID: provenanceID,
+            originRef: provenanceID,
+            sourceClass: .publicSource,
+            codecPath: [codecEntry],
+            contentFingerprint: fingerprint
+        )
+
+        let source = context.repository.insertContinuitySource(
+            kind: .browserContext,
+            title: input.title,
+            bodyText: input.bodyText,
+            sourceURL: input.sourceURL,
+            capturedAt: input.capturedAt,
+            metadata: input.metadata,
+            state: .captured,
+            provenance: provenance
+        )
+
+        _ = context.repository.insertTransformationLog(
+            codecName: name,
+            codecVersion: version,
+            inputEntityIDs: [],
+            outputEntityIDs: [source.provenanceID],
+            inputHash: fingerprint,
+            outputHash: fingerprint,
+            durationMs: Date().timeIntervalSince(start) * 1000,
+            modelUsed: nil,
+            sourceClass: .publicSource,
+            originRef: source.provenanceID
+        )
+
+        return BrowserContextIngestOutput(
+            continuitySourceID: source.provenanceID,
+            contentFingerprint: fingerprint
+        )
+    }
+
+    public static func fingerprint(sourceURL: String, title: String, bodyText: String) -> String {
+        ContentFingerprint.hash(sourceURL, title, bodyText)
     }
 }

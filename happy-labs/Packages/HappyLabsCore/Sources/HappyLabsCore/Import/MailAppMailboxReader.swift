@@ -32,15 +32,32 @@ public enum MailAppMailboxReader {
     }
 
     public static func loadMessages(from url: URL) throws -> [ParsedEmail] {
+        try loadMessages(from: url, scope: .everything).messages
+    }
+
+    public static func loadMessages(from url: URL, scope: ImportScope) throws -> ScopedMailboxLoad {
         var messages: [ParsedEmail] = []
+        var totalParsedCount = 0
+        var newestParsedDate: Date?
         for fileURL in emlxFiles(in: url) {
+            try ImportCancellation.throwIfCancelled()
             guard let data = try? Data(contentsOf: fileURL),
                   let parsed = MboxParser.parseEmlx(data: data) else {
                 continue
             }
-            messages.append(parsed)
+            totalParsedCount += 1
+            if let date = parsed.date {
+                newestParsedDate = max(newestParsedDate ?? date, date)
+            }
+            if scope.includes(messageDate: parsed.date) {
+                messages.append(parsed)
+            }
         }
-        return messages
+        return ScopedMailboxLoad(
+            messages: messages,
+            totalParsedCount: totalParsedCount,
+            newestParsedDate: newestParsedDate
+        )
     }
 
     private static func emlxFiles(in root: URL) -> [URL] {

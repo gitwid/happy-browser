@@ -16,6 +16,7 @@ public struct DataResetService: Sendable {
                 "DiscardedArtifactEntity",
                 "HumanDecisionEntity",
                 "TransformationLogEntity",
+                "ContinuitySource",
                 "JournalEntryEntity",
                 "StoryCandidateEntity",
                 "EmailThreadEntity",

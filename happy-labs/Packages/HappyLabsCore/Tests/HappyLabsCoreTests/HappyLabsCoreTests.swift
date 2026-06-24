@@ -241,6 +241,65 @@ Content-Transfer-Encoding: quoted-printable
         XCTAssertTrue(try repo.fetchJournalEntries().isEmpty)
     }
 
+    func testImportRollbackRemovesPartialPipeline() throws {
+        let persistence = PersistenceController(inMemory: true)
+        let orchestrator = PipelineOrchestrator(
+            persistence: persistence,
+            summarizationProvider: ExtractiveFallbackProvider()
+        )
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("rollback-\(UUID().uuidString).mbox")
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+        try """
+        From alice@example.com Mon Jun 16 12:00:00 2026
+        From: alice@example.com
+        To: bob@example.com
+        Subject: Rollback me
+        Message-ID: <rollback@example.com>
+        Date: Mon, 16 Jun 2026 12:00:00 +0000
+
+        Body
+
+        """.write(to: tempURL, atomically: true, encoding: .utf8)
+
+        let importOutput = try orchestrator.importMbox(at: tempURL, scope: .everything)
+        _ = try orchestrator.runThreadCluster(mboxImportID: importOutput.importEntityID)
+        let repo = EntityRepository(context: persistence.container.viewContext)
+        XCTAssertFalse(try repo.fetchRawEmails(mboxImportID: importOutput.importEntityID).isEmpty)
+        XCTAssertFalse(try repo.fetchEmailThreads().isEmpty)
+
+        try orchestrator.rollbackImport(mboxImportID: importOutput.importEntityID)
+        XCTAssertTrue(try repo.fetchRawEmails(mboxImportID: importOutput.importEntityID).isEmpty)
+        XCTAssertTrue(try repo.fetchEmailThreads().isEmpty)
+        XCTAssertNil(try repo.fetchMboxImport(id: importOutput.importEntityID))
+    }
+
+    func testScopedMboxParseCountsAllMessages() throws {
+        let mbox = """
+        From old@example.com Mon Jun 16 12:00:00 2020
+        From: old@example.com
+        To: bob@example.com
+        Subject: Old
+        Message-ID: <old@example.com>
+        Date: Mon, 16 Jun 2020 12:00:00 +0000
+
+        Old body
+
+        From new@example.com Mon Jun 16 12:00:00 2026
+        From: new@example.com
+        To: bob@example.com
+        Subject: New
+        Message-ID: <new@example.com>
+        Date: Mon, 16 Jun 2026 12:00:00 +0000
+
+        New body
+
+        """
+        let loaded = try MboxParser.parse(text: mbox, scope: .lastMonth)
+        XCTAssertEqual(loaded.totalParsedCount, 2)
+        XCTAssertEqual(loaded.messages.count, 1)
+        XCTAssertEqual(loaded.messages.first?.subject, "New")
+    }
+
     func testImportsMailAppLiveMailboxBundle() throws {
         let persistence = PersistenceController(inMemory: true)
         let orchestrator = PipelineOrchestrator(
@@ -271,6 +330,182 @@ Content-Transfer-Encoding: quoted-printable
 
         let output = try orchestrator.importMbox(at: mailboxURL, scope: .everything)
         XCTAssertEqual(output.messageCount, 1)
+    }
+}
+
+final class ContinuitySourceTests: XCTestCase {
+    func testLocalSeedFixtureCreatesIOSWitnessStates() throws {
+        let persistence = PersistenceController(inMemory: true)
+        let result = try LocalSeedFixtureService(persistence: persistence).resetAndSeed()
+        let repo = EntityRepository(context: persistence.container.viewContext)
+
+        let entries = try repo.fetchJournalEntries()
+        XCTAssertEqual(entries.count, 2)
+        XCTAssertEqual(try repo.fetchJournalEntries(status: .draft).map(\.provenanceID), [result.draftEntryID])
+        XCTAssertEqual(try repo.fetchJournalEntries(status: .archived).map(\.provenanceID), [result.archivedEntryID])
+
+        let captured = try repo.fetchContinuitySources(state: .captured)
+        let attached = try repo.fetchContinuitySources(state: .attached)
+        XCTAssertEqual(captured.map(\.provenanceID), [result.capturedContextID])
+        XCTAssertEqual(attached.map(\.provenanceID), [result.attachedContextID])
+
+        let draft = try XCTUnwrap(entries.first { $0.provenanceID == result.draftEntryID })
+        XCTAssertEqual(draft.attachedSources.map(\.provenanceID), [result.attachedContextID])
+        XCTAssertEqual(draft.entryStatus, .draft)
+
+        let archived = try XCTUnwrap(entries.first { $0.provenanceID == result.archivedEntryID })
+        XCTAssertEqual(archived.entryStatus, .archived)
+        XCTAssertNotNil(archived.archivedAt)
+        let decisions = try repo.fetchHumanDecisions(journalEntryID: archived.provenanceID)
+        XCTAssertEqual(decisions.map(\.provenanceID), [result.humanDecisionID])
+        XCTAssertEqual(decisions.first?.decisionAction, .approve)
+    }
+
+    func testBrowserContextIngestProducesStableFingerprintAndCapturedSource() throws {
+        let persistence = PersistenceController(inMemory: true)
+        let orchestrator = PipelineOrchestrator(
+            persistence: persistence,
+            summarizationProvider: ExtractiveFallbackProvider()
+        )
+        let input = BrowserContextIngestInput(
+            sourceURL: "https://example.com/context",
+            title: "Context page",
+            bodyText: "The same body.",
+            capturedAt: Date(timeIntervalSince1970: 1_800_000_000),
+            metadata: ["fixture": "synthetic"]
+        )
+
+        let first = try orchestrator.ingestBrowserContext(input)
+        let second = try orchestrator.ingestBrowserContext(input)
+        let changed = try orchestrator.ingestBrowserContext(
+            BrowserContextIngestInput(
+                sourceURL: input.sourceURL,
+                title: input.title,
+                bodyText: "A changed body.",
+                capturedAt: input.capturedAt,
+                metadata: input.metadata
+            )
+        )
+
+        XCTAssertEqual(first.contentFingerprint, second.contentFingerprint)
+        XCTAssertNotEqual(first.contentFingerprint, changed.contentFingerprint)
+        XCTAssertEqual(
+            first.contentFingerprint,
+            BrowserContextIngestCodec.fingerprint(
+                sourceURL: input.sourceURL,
+                title: input.title,
+                bodyText: input.bodyText
+            )
+        )
+
+        let repo = EntityRepository(context: persistence.container.viewContext)
+        let sources = try repo.fetchContinuitySources(state: .captured, kind: .browserContext)
+        XCTAssertEqual(sources.count, 3)
+        let source = try XCTUnwrap(try repo.fetchContinuitySource(id: first.continuitySourceID))
+        XCTAssertEqual(source.kind, .browserContext)
+        XCTAssertEqual(source.state, .captured)
+        XCTAssertEqual(source.sourceClass, .publicSource)
+        XCTAssertEqual(source.sourceURL, input.sourceURL)
+        XCTAssertEqual(source.metadata["fixture"], "synthetic")
+    }
+
+    func testAttachBrowserContextIsDirectionalIdempotentAndSurvivesEntryDelete() throws {
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        let repo = EntityRepository(context: context)
+        let entry = makeDraftEntry(repo: repo)
+        let source = makeBrowserContextSource(repo: repo)
+        try persistence.save(context)
+
+        XCTAssertTrue(try repo.attachContinuitySource(sourceID: source.provenanceID, toJournalEntryID: entry.provenanceID))
+        XCTAssertFalse(try repo.attachContinuitySource(sourceID: source.provenanceID, toJournalEntryID: entry.provenanceID))
+        try persistence.save(context)
+
+        XCTAssertEqual(entry.attachedSources.count, 1)
+        XCTAssertEqual(source.attachedEntries.count, 1)
+        XCTAssertEqual(source.state, .attached)
+        XCTAssertEqual(try repo.fetchContinuitySources(state: .captured).count, 0)
+        XCTAssertEqual(try repo.fetchContinuitySources(state: .attached).count, 1)
+        XCTAssertEqual(entry.entryStatus, .draft)
+        XCTAssertTrue(try repo.fetchHumanDecisions(journalEntryID: entry.provenanceID).isEmpty)
+
+        context.delete(entry)
+        try persistence.save(context)
+
+        let survivingSource = try XCTUnwrap(try repo.fetchContinuitySource(id: source.provenanceID))
+        XCTAssertEqual(survivingSource.state, .attached)
+    }
+
+    func testExportPreservesAttachedContextIdentityAndHumanDecision() throws {
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        let repo = EntityRepository(context: context)
+        let entry = makeDraftEntry(repo: repo)
+        let source = makeBrowserContextSource(repo: repo)
+        let entryID = entry.provenanceID
+        let sourceID = source.provenanceID
+        let sourceURL = source.sourceURL
+        try persistence.save(context)
+        try repo.attachContinuitySource(sourceID: sourceID, toJournalEntryID: entryID)
+        try persistence.save(context)
+
+        let preDecisionExport = try ExportService(persistence: persistence).roundTrip(entryID: entryID)
+        XCTAssertEqual(preDecisionExport.contextSources.map(\.provenanceID), [sourceID])
+        XCTAssertTrue(preDecisionExport.humanDecisions.isEmpty)
+        XCTAssertNil(preDecisionExport.journal.archivedAt)
+
+        try HumanReviewService(persistence: persistence).applyDecision(
+            journalEntryID: entryID,
+            action: .approve,
+            editedTitle: nil,
+            editedBodyMarkdown: nil
+        )
+        persistence.container.viewContext.reset()
+
+        let postDecisionExport = try ExportService(persistence: persistence).roundTrip(entryID: entryID)
+        XCTAssertEqual(postDecisionExport.contextSources.map(\.provenanceID), [sourceID])
+        XCTAssertEqual(postDecisionExport.contextSources.first?.sourceURL, sourceURL)
+        XCTAssertFalse(postDecisionExport.humanDecisions.isEmpty)
+        XCTAssertNotNil(postDecisionExport.journal.archivedAt)
+    }
+
+    private func makeDraftEntry(repo: EntityRepository) -> JournalEntryEntity {
+        let provenance = ProvenanceFields(
+            originRef: UUID(),
+            sourceClass: .userHeld,
+            contentFingerprint: ContentFingerprint.hash("draft-entry")
+        )
+        return repo.insertJournalEntry(
+            title: "Draft entry",
+            bodyMarkdown: "Body",
+            tags: ["email", "draft"],
+            status: .draft,
+            storyCandidateID: UUID(),
+            provenance: provenance
+        )
+    }
+
+    private func makeBrowserContextSource(repo: EntityRepository) -> ContinuitySource {
+        let fingerprint = BrowserContextIngestCodec.fingerprint(
+            sourceURL: "https://example.com/context",
+            title: "Context page",
+            bodyText: "Body"
+        )
+        let provenance = ProvenanceFields(
+            originRef: UUID(),
+            sourceClass: .publicSource,
+            contentFingerprint: fingerprint
+        )
+        return repo.insertContinuitySource(
+            kind: .browserContext,
+            title: "Context page",
+            bodyText: "Body",
+            sourceURL: "https://example.com/context",
+            capturedAt: Date(timeIntervalSince1970: 1_800_000_000),
+            metadata: ["fixture": "synthetic"],
+            state: .captured,
+            provenance: provenance
+        )
     }
 }
 
