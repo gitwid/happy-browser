@@ -36,15 +36,20 @@ final class AppModel: ObservableObject {
     @Published var journalEntries: [JournalEntryEntity] = []
     @Published var journalRows: [JournalEntryRow] = []
     @Published var journalCountLine = "0 ENTRIES · 0 ARCHIVED · 0 IN REVIEW"
+    @Published var contextSources: [ContinuitySource] = []
+    @Published var contextRows: [ContextSourceRow] = []
+    @Published var contextCountLine = "0 CAPTURED · PRE-ARCHIVAL"
     @Published var transformationLogs: [TransformationLogEntity] = []
     @Published var isBusy = false
     @Published var importProgressMessage: String?
+    @Published var importProgressFraction: Double?
     @Published var importScopeTitle: String?
     @Published var pendingImportURL: URL?
     @Published var selectedImportScope: ImportScope = .lastMonth
     @Published var mailboxPreview: MailboxPreview?
 
     private var importTask: Task<Void, Never>?
+    private var activeImportID: UUID?
     private let dataResetService: DataResetService
 
     init() {
@@ -60,6 +65,7 @@ final class AppModel: ObservableObject {
         let context = persistence.container.viewContext
         let repo = EntityRepository(context: context)
         journalEntries = (try? repo.fetchJournalEntries()) ?? []
+        contextSources = (try? repo.fetchContinuitySources(state: .captured)) ?? []
         transformationLogs = (try? repo.fetchTransformationLogs()) ?? []
         rebuildPresentation()
     }
@@ -70,6 +76,8 @@ final class AppModel: ObservableObject {
             context: persistence.container.viewContext
         )
         journalCountLine = JournalPresentationBuilder.countLine(entries: journalRows)
+        contextRows = JournalPresentationBuilder.contextRows(from: contextSources)
+        contextCountLine = JournalPresentationBuilder.contextCountLine(rows: contextRows)
     }
 
     func pickMboxImport() {
@@ -115,48 +123,64 @@ final class AppModel: ObservableObject {
 
     func beginImport(from url: URL, scope: ImportScope) {
         importTask?.cancel()
+        activeImportID = nil
         isBusy = true
         importScopeTitle = scope.title
-        importProgressMessage = "Reading mailbox…"
+        importProgressMessage = "Preparing import…"
+        importProgressFraction = 0
         statusMessage = "Importing (\(scope.title))…"
 
         let orchestrator = orchestrator
         let entryCountBefore = journalEntries.count
         let fileName = url.lastPathComponent
         importTask = Task { @MainActor in
+            var importEntityID: UUID?
             do {
-                importProgressMessage = "Reading and parsing messages…"
-                let importOutput = try await Task.detached(priority: .userInitiated) {
-                    try orchestrator.importMbox(at: url, scope: scope)
-                }.value
+                setImportProgress("Reading and parsing messages…", fraction: 0.08)
+                let importOutput = try await runImportStage {
+                    try orchestrator.importMbox(at: url, scope: scope) { update in
+                        Task { @MainActor in
+                            self.importProgressMessage = update.message
+                        }
+                    }
+                }
+                setImportProgress("Mailbox saved. Preparing thread clusters…", fraction: 0.26)
+                importEntityID = importOutput.importEntityID
+                activeImportID = importOutput.importEntityID
                 try Task.checkCancellation()
 
-                importProgressMessage = "Clustering threads…"
-                let threadOutput = try await Task.detached(priority: .userInitiated) {
+                setImportProgress("Clustering threads…", fraction: 0.32)
+                let threadOutput = try await runImportStage {
                     try orchestrator.runThreadCluster(mboxImportID: importOutput.importEntityID)
-                }.value
+                }
+                setImportProgress("Threads clustered. Finding stories…", fraction: 0.48)
                 try Task.checkCancellation()
 
-                importProgressMessage = "Extracting stories…"
-                let storyOutput = try await Task.detached(priority: .userInitiated) {
+                setImportProgress("Extracting stories…", fraction: 0.54)
+                let storyOutput = try await runImportStage {
                     try orchestrator.runStoryExtraction(threadIDs: threadOutput.threadIDs)
-                }.value
+                }
+                setImportProgress("Stories extracted. Drafting journal entries…", fraction: 0.70)
                 try Task.checkCancellation()
 
-                importProgressMessage = "Weaving journal drafts…"
-                _ = try await Task.detached(priority: .userInitiated) {
+                setImportProgress("Weaving journal drafts…", fraction: 0.76)
+                _ = try await runImportStage {
                     try orchestrator.runJournalDraft(storyCandidateIDs: storyOutput.storyCandidateIDs)
-                }.value
+                }
+                setImportProgress("Drafts ready. Building coherence report…", fraction: 0.90)
                 try Task.checkCancellation()
 
-                importProgressMessage = "Finishing up…"
-                let coherenceReport = try await Task.detached(priority: .userInitiated) {
-                    try CoherenceReportService(persistence: orchestrator.persistence).generate(mboxImportID: importOutput.importEntityID)
-                }.value
+                setImportProgress("Finishing up…", fraction: 0.94)
+                let coherenceReport = try await runImportStage {
+                    try CoherenceReportService(persistence: orchestrator.persistence)
+                        .generate(mboxImportID: importOutput.importEntityID)
+                }
+                setImportProgress("Import complete.", fraction: 1)
                 try Task.checkCancellation()
 
                 lastImportID = importOutput.importEntityID
                 self.coherenceReport = coherenceReport
+                activeImportID = nil
                 finishImport()
                 refresh()
                 let added = journalEntries.count - entryCountBefore
@@ -168,11 +192,25 @@ final class AppModel: ObservableObject {
                 }
                 mailboxPreview = nil
             } catch is CancellationError {
+                if let importEntityID {
+                    try? await runImportStage {
+                        try orchestrator.rollbackImport(mboxImportID: importEntityID)
+                    }
+                }
+                activeImportID = nil
                 statusMessage = "Import cancelled."
                 finishImport()
+                refresh()
             } catch {
+                if let importEntityID {
+                    try? await runImportStage {
+                        try orchestrator.rollbackImport(mboxImportID: importEntityID)
+                    }
+                }
+                activeImportID = nil
                 statusMessage = "Import failed: \(error.localizedDescription)"
                 finishImport()
+                refresh()
             }
         }
     }
@@ -181,9 +219,26 @@ final class AppModel: ObservableObject {
         importTask?.cancel()
     }
 
+    private func runImportStage<T: Sendable>(_ work: @escaping @Sendable () throws -> T) async throws -> T {
+        let task = Task.detached(priority: .userInitiated) {
+            try work()
+        }
+        return try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    private func setImportProgress(_ message: String, fraction: Double) {
+        importProgressMessage = message
+        importProgressFraction = min(max(fraction, 0), 1)
+    }
+
     private func finishImport() {
         isBusy = false
         importProgressMessage = nil
+        importProgressFraction = nil
         importScopeTitle = nil
         importTask = nil
     }

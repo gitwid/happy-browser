@@ -19,7 +19,7 @@ def Xform "KnowledgeRTX" (
     {
         custom string hkrtx:id = "question_0001"
         custom token hkrtx:type = "intent_source"
-        custom string hkrtx:text = "Render the KnowledgeRTX kernel as an executable USD/Omniverse scene graph."
+        custom string hkrtx:text = "Trace imported correspondence into reviewable journal/connectome structures while preserving provenance before convergence."
         rel hkrtx:casts = [
             </KnowledgeRTX/AttentionRays/IntentRay_Primary>,
             </KnowledgeRTX/AttentionRays/IntentRay_Provenance>,

@@ -1,0 +1,105 @@
+# KnowledgeRTX binding matrix v0.1
+# Architectural SSOT: happy-labs/KnowledgeRTX.usda
+# Operational SSOT: HappyLabsCore, Core Data, README, coherence JSON
+
+bindings:
+  - path: /Question
+    swift: "Sprint intent — Journal + Connectome goal"
+    status: bound
+
+  - path: /AttentionRays/IntentRay_Primary
+    swift: "MboxImportCodec → ThreadClusterCodec → StoryExtractionCodec → JournalDraftCodec"
+    status: bound
+
+  - path: /AttentionRays/IntentRay_Provenance
+    swift: "codecPath, TransformationLogEntity, ProvenancePlateView"
+    status: partial
+
+  - path: /ReflectiveEntities/Resource_DocumentCorpus
+    swift: ".mbox import / RawEmailEntity"
+    status: bound
+
+  - path: /ReflectiveEntities/Resource_UserContext
+    swift: "ImportScope, HumanDecisionEntity"
+    status: partial
+
+  - path: /ReflectiveEntities/Resource_SourceChain
+    swift: "TransformationLogEntity, ProvenancePlateView, ConnectomeGraphBuilder"
+    status: partial
+
+  - path: /ReflectiveEntities/Resource_ModelBoundary
+    swift: "ExtractiveFallbackProvider limits"
+    status: partial
+
+  - path: /ReflectiveEntities/Resource_RuntimeObservation
+    swift: "CoherenceReportService export"
+    status: partial
+
+  - path: /Reflections/Reflection_CorpusStructure
+    swift: "computed coherence rows — not stored truth"
+    status: gap
+
+  - path: /Reflections/Reflection_UserIntent
+    swift: "computed coherence rows — not stored truth"
+    status: gap
+
+  - path: /Reflections/Reflection_ProvenanceIntegrity
+    swift: "computed coherence rows — not stored truth"
+    status: gap
+
+  - path: /Reflections/Reflection_KnownUnknowns
+    swift: "computed coherence rows — not stored truth"
+    status: gap
+
+  - path: /Reflections/Reflection_RuntimeFit
+    swift: "computed coherence rows — not stored truth"
+    status: gap
+
+  - path: /ConvergenceField
+    swift: "CoherenceReport summary"
+    status: partial
+
+  - path: /HumanInLoop
+    swift: "Journal review UI — approve / edit / retain / discard"
+    status: bound
+
+  - path: /Action
+    swift: "archive / discard / export decision"
+    status: partial
+
+  - path: /Relations
+    swift: "graph tooling only"
+    status: optional
+
+  - path: /Gaps
+    swift: "sprint backlog seed"
+    status: bound
+
+gaps:
+  Gap_RuntimeSourceBindings: must_close_partially
+  Gap_ConfidenceComputation: defer_automation
+  Gap_CustomSchemaPlugin: backlog
+
+# Record binding status changes here before merging a regression.
+changelog: []
+
+# Baseline for regression checks — update when changelog documents a status change.
+status_baseline:
+  /Question: bound
+  /AttentionRays/IntentRay_Primary: bound
+  /AttentionRays/IntentRay_Provenance: partial
+  /ReflectiveEntities/Resource_DocumentCorpus: bound
+  /ReflectiveEntities/Resource_UserContext: partial
+  /ReflectiveEntities/Resource_SourceChain: partial
+  /ReflectiveEntities/Resource_ModelBoundary: partial
+  /ReflectiveEntities/Resource_RuntimeObservation: partial
+  /Reflections/Reflection_CorpusStructure: gap
+  /Reflections/Reflection_UserIntent: gap
+  /Reflections/Reflection_ProvenanceIntegrity: gap
+  /Reflections/Reflection_KnownUnknowns: gap
+  /Reflections/Reflection_RuntimeFit: gap
+  /ConvergenceField: partial
+  /HumanInLoop: bound
+  /Action: partial
+  /Relations: optional
+  /Gaps: bound

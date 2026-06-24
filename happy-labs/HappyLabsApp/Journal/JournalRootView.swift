@@ -4,6 +4,7 @@ import SwiftUI
 struct JournalRootView: View {
     @EnvironmentObject private var appModel: AppModel
     @State private var openEntryID: UUID?
+    @State private var showConnectome = false
     @State private var provenanceExpanded = false
 
     var body: some View {
@@ -13,6 +14,7 @@ struct JournalRootView: View {
             if appModel.isBusy, let message = appModel.importProgressMessage {
                 ImportProgressOverlay(
                     message: message,
+                    progress: appModel.importProgressFraction,
                     scopeTitle: appModel.importScopeTitle ?? "Import",
                     onCancel: { appModel.cancelImport() }
                 )
@@ -89,12 +91,38 @@ struct JournalRootView: View {
                     )
                     .padding(.horizontal, 28)
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
+                } else if showConnectome, let graph = connectomeGraph {
+                    ConnectomeView(
+                        graph: graph,
+                        onBack: {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                showConnectome = false
+                            }
+                        },
+                        onOpen: { id in
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                showConnectome = false
+                                openEntryID = id
+                                provenanceExpanded = false
+                            }
+                        }
+                    )
+                    .padding(.horizontal, 28)
+                    .transition(.opacity.combined(with: .move(edge: .leading)))
                 } else {
                     JournalLibraryView(
                         rows: appModel.journalRows,
                         countLine: appModel.journalCountLine,
+                        contextRows: appModel.contextRows,
+                        contextCountLine: appModel.contextCountLine,
                         isEmpty: appModel.journalRows.isEmpty,
                         onImport: { guard !appModel.isBusy else { return }; pickMbox() },
+                        onOpenConnectome: {
+                            guard !appModel.journalRows.isEmpty else { return }
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                showConnectome = true
+                            }
+                        },
                         onOpen: { id in
                             withAnimation(.easeOut(duration: 0.2)) {
                                 openEntryID = id
@@ -115,6 +143,10 @@ struct JournalRootView: View {
             .frame(maxWidth: .infinity)
             .padding(.bottom, 96)
         }
+    }
+
+    private var connectomeGraph: ConnectomeGraph? {
+        ConnectomeGraphBuilder.build(context: appModel.persistence.container.viewContext)
     }
 
     private func detail(for id: UUID) -> JournalEntryDetail? {
@@ -168,6 +200,7 @@ struct JournalRootView: View {
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         appModel.clearAllJournalData()
         openEntryID = nil
+        showConnectome = false
         provenanceExpanded = false
     }
 }

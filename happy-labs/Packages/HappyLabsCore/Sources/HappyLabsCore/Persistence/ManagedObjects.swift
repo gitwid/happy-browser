@@ -118,10 +118,38 @@ public final class JournalEntryEntity: NSManagedObject, ProvenancePersistable {
     @NSManaged public var status: String
     @NSManaged public var storyCandidateID: UUID
     @NSManaged public var archivedAt: Date?
+    @NSManaged public var attachedSources: Set<ContinuitySource>
 
     public var entryStatus: JournalEntryStatus {
         get { JournalEntryStatus(rawValue: status) ?? .draft }
         set { status = newValue.rawValue }
+    }
+}
+
+@objc(ContinuitySource)
+public final class ContinuitySource: NSManagedObject, ProvenancePersistable {
+    @NSManaged public var provenanceID: UUID
+    @NSManaged public var originRef: UUID
+    @NSManaged public var sourceClassRaw: String
+    @NSManaged public var codecPathJSON: String
+    @NSManaged public var contentFingerprint: String
+    @NSManaged public var kindRaw: String
+    @NSManaged public var title: String
+    @NSManaged public var bodyText: String
+    @NSManaged public var sourceURL: String?
+    @NSManaged public var capturedAt: Date
+    @NSManaged public var metadataJSON: String
+    @NSManaged public var stateRaw: String
+    @NSManaged public var attachedEntries: Set<JournalEntryEntity>
+
+    public var kind: ContinuitySourceKind {
+        get { ContinuitySourceKind(rawValue: kindRaw) ?? .browserContext }
+        set { kindRaw = newValue.rawValue }
+    }
+
+    public var state: ContinuitySourceState {
+        get { ContinuitySourceState(rawValue: stateRaw) ?? .captured }
+        set { stateRaw = newValue.rawValue }
     }
 }
 
@@ -210,6 +238,13 @@ extension JournalEntryEntity {
     public var tags: [String] {
         get { JSONStore.decode([String].self, from: tagsJSON) ?? [] }
         set { tagsJSON = JSONStore.encode(newValue) }
+    }
+}
+
+extension ContinuitySource {
+    public var metadata: [String: String] {
+        get { JSONStore.decode([String: String].self, from: metadataJSON) ?? [:] }
+        set { metadataJSON = JSONStore.encode(newValue) }
     }
 }
 

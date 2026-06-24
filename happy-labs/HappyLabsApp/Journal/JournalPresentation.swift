@@ -14,6 +14,25 @@ struct JournalEntryRow: Identifiable {
     let status: JournalEntryStatus
 }
 
+struct ContextSourceRow: Identifiable {
+    let id: UUID
+    let title: String
+    let sourceURL: String
+    let stateLabel: String
+    let capturedLine: String
+    let shortFingerprint: String
+}
+
+struct ContextSourceSummary: Identifiable {
+    let id: UUID
+    let title: String
+    let kind: String
+    let state: String
+    let sourceURL: String?
+    let fingerprint: String
+    let shortFingerprint: String
+}
+
 struct ProvenanceRung: Identifiable {
     let id = UUID()
     let stage: String
@@ -37,10 +56,24 @@ struct JournalEntryDetail: Identifiable {
     let decisionField: String
     let decisionNote: String
     let isDiscarded: Bool
+    let attachedContextSources: [ContextSourceSummary]
     let lineage: [ProvenanceRung]
 }
 
 enum JournalPresentationBuilder {
+    static func contextRows(from sources: [ContinuitySource]) -> [ContextSourceRow] {
+        sources.sorted { $0.capturedAt > $1.capturedAt }.map { source in
+            ContextSourceRow(
+                id: source.provenanceID,
+                title: source.title,
+                sourceURL: source.sourceURL ?? "local capture",
+                stateLabel: source.state.rawValue.uppercased(),
+                capturedLine: capturedLine(for: source.capturedAt),
+                shortFingerprint: shortHash(source.contentFingerprint)
+            )
+        }
+    }
+
     static func rows(from entries: [JournalEntryEntity], context: NSManagedObjectContext) -> [JournalEntryRow] {
         let storyIDs = entries.map(\.storyCandidateID)
         let stories = fetchStoryCandidates(ids: storyIDs, context: context)
@@ -93,6 +126,7 @@ enum JournalPresentationBuilder {
             decisionField: copy.field,
             decisionNote: copy.note,
             isDiscarded: status == .discarded,
+            attachedContextSources: attachedContextSummaries(for: entry),
             lineage: lineage(
                 entry: entry,
                 story: story,
@@ -107,6 +141,10 @@ enum JournalPresentationBuilder {
         let archived = entries.filter { $0.status == .archived }.count
         let review = entries.filter { $0.status == .draft || $0.status == .retained }.count
         return "\(entries.count) ENTRIES · \(archived) ARCHIVED · \(review) IN REVIEW"
+    }
+
+    static func contextCountLine(rows: [ContextSourceRow]) -> String {
+        "\(rows.count) CAPTURED · PRE-ARCHIVAL"
     }
 
     private static func sortKey(
@@ -220,6 +258,27 @@ enum JournalPresentationBuilder {
     private static func shortHash(_ hash: String) -> String {
         guard hash.count > 16 else { return hash }
         return "\(hash.prefix(8))…\(hash.suffix(8))"
+    }
+
+    private static func capturedLine(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    private static func attachedContextSummaries(for entry: JournalEntryEntity) -> [ContextSourceSummary] {
+        entry.attachedSources.sorted { $0.capturedAt < $1.capturedAt }.map { source in
+            ContextSourceSummary(
+                id: source.provenanceID,
+                title: source.title,
+                kind: source.kind.rawValue,
+                state: source.state.rawValue,
+                sourceURL: source.sourceURL,
+                fingerprint: source.contentFingerprint,
+                shortFingerprint: shortHash(source.contentFingerprint)
+            )
+        }
     }
 
     private static func lineage(

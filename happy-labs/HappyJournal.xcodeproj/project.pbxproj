@@ -1,0 +1,448 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1890390FE8177E6DC1CDF153 /* JournalHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F45C7D0E539DBD16E43E03B0 /* JournalHomeView.swift */; };
+		6CA064FCEA5EBB0C8E12057C /* HappyJournalUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BAB1A14E324C48242280F56 /* HappyJournalUITests.swift */; };
+		C3380A0AF5530B1C19C68A0B /* HappyLabsCore in Frameworks */ = {isa = PBXBuildFile; productRef = B742531CEC36E33277A7CEC4 /* HappyLabsCore */; };
+		E466AB098B0376409909D5F2 /* HappyJournalApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D69D9587C6495913C3DD952D /* HappyJournalApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		BD38FD77E5A41C040A8DCB77 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 47C56472BA9F978F8681E95B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6F5E87CEC92AFF98D06DDE97;
+			remoteInfo = HappyJournal;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		3BAB1A14E324C48242280F56 /* HappyJournalUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappyJournalUITests.swift; sourceTree = "<group>"; };
+		4C7A3F38DF1AAA72369E52B5 /* HappyJournal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HappyJournal.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		92FB539978A49348E25866AF /* HappyLabsCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = HappyLabsCore; path = Packages/HappyLabsCore; sourceTree = SOURCE_ROOT; };
+		D69D9587C6495913C3DD952D /* HappyJournalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappyJournalApp.swift; sourceTree = "<group>"; };
+		E3D6254222381BAC7AB25D76 /* HappyJournalUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HappyJournalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F45C7D0E539DBD16E43E03B0 /* JournalHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalHomeView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		234EB7738AB791DC8CE22EAA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C3380A0AF5530B1C19C68A0B /* HappyLabsCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		00537752CB37BC0EB870DD59 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				4C7A3F38DF1AAA72369E52B5 /* HappyJournal.app */,
+				E3D6254222381BAC7AB25D76 /* HappyJournalUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		01CEC6C21993BD129D6B3B4E = {
+			isa = PBXGroup;
+			children = (
+				8E0213C4744EC5F8E1A01427 /* HappyJournaliOS */,
+				10069473848182035D98C5A4 /* HappyJournalUITests */,
+				134FD8197944B07A81072545 /* Packages */,
+				00537752CB37BC0EB870DD59 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		10069473848182035D98C5A4 /* HappyJournalUITests */ = {
+			isa = PBXGroup;
+			children = (
+				3BAB1A14E324C48242280F56 /* HappyJournalUITests.swift */,
+			);
+			path = HappyJournalUITests;
+			sourceTree = "<group>";
+		};
+		134FD8197944B07A81072545 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				92FB539978A49348E25866AF /* HappyLabsCore */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
+		8E0213C4744EC5F8E1A01427 /* HappyJournaliOS */ = {
+			isa = PBXGroup;
+			children = (
+				D69D9587C6495913C3DD952D /* HappyJournalApp.swift */,
+				F45C7D0E539DBD16E43E03B0 /* JournalHomeView.swift */,
+			);
+			path = HappyJournaliOS;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1767ABAD97382A45BA37C326 /* HappyJournalUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EA7115C3471C3129641E3319 /* Build configuration list for PBXNativeTarget "HappyJournalUITests" */;
+			buildPhases = (
+				BC728EA1E4B53A6F198B6BA8 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FB299C85720C228C476F09B0 /* PBXTargetDependency */,
+			);
+			name = HappyJournalUITests;
+			packageProductDependencies = (
+			);
+			productName = HappyJournalUITests;
+			productReference = E3D6254222381BAC7AB25D76 /* HappyJournalUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		6F5E87CEC92AFF98D06DDE97 /* HappyJournal */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EC36A3216424FC287E0C2181 /* Build configuration list for PBXNativeTarget "HappyJournal" */;
+			buildPhases = (
+				8BE3B4A759F40540A91130D3 /* Sources */,
+				234EB7738AB791DC8CE22EAA /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = HappyJournal;
+			packageProductDependencies = (
+				B742531CEC36E33277A7CEC4 /* HappyLabsCore */,
+			);
+			productName = HappyJournal;
+			productReference = 4C7A3F38DF1AAA72369E52B5 /* HappyJournal.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		47C56472BA9F978F8681E95B /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					1767ABAD97382A45BA37C326 = {
+						TestTargetID = 6F5E87CEC92AFF98D06DDE97;
+					};
+					6F5E87CEC92AFF98D06DDE97 = {
+						DevelopmentTeam = "";
+					};
+				};
+			};
+			buildConfigurationList = B9F802A55329FEBC17D2FA89 /* Build configuration list for PBXProject "HappyJournal" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 01CEC6C21993BD129D6B3B4E;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				82D032659C0274B3DEDD1377 /* XCLocalSwiftPackageReference "Packages/HappyLabsCore" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 00537752CB37BC0EB870DD59 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				6F5E87CEC92AFF98D06DDE97 /* HappyJournal */,
+				1767ABAD97382A45BA37C326 /* HappyJournalUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		8BE3B4A759F40540A91130D3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E466AB098B0376409909D5F2 /* HappyJournalApp.swift in Sources */,
+				1890390FE8177E6DC1CDF153 /* JournalHomeView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BC728EA1E4B53A6F198B6BA8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6CA064FCEA5EBB0C8E12057C /* HappyJournalUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		FB299C85720C228C476F09B0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6F5E87CEC92AFF98D06DDE97 /* HappyJournal */;
+			targetProxy = BD38FD77E5A41C040A8DCB77 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		05FEC09CE2AA9DF18C2A3D99 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Happy Journal";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.happylabs.HappyJournal;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		403C7545ABFB1FA6565E4A38 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.happylabs.HappyJournalUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = HappyJournal;
+			};
+			name = Debug;
+		};
+		73FB03870975718E38A27254 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.happylabs.HappyJournalUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = HappyJournal;
+			};
+			name = Release;
+		};
+		94D13341B4EAC60B7588F706 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Happy Journal";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.happylabs.HappyJournal;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		A6D2A8B20EFE4047DBB16147 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		C4A253F3D16E10B23D004FA1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		B9F802A55329FEBC17D2FA89 /* Build configuration list for PBXProject "HappyJournal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C4A253F3D16E10B23D004FA1 /* Debug */,
+				A6D2A8B20EFE4047DBB16147 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		EA7115C3471C3129641E3319 /* Build configuration list for PBXNativeTarget "HappyJournalUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				403C7545ABFB1FA6565E4A38 /* Debug */,
+				73FB03870975718E38A27254 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		EC36A3216424FC287E0C2181 /* Build configuration list for PBXNativeTarget "HappyJournal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				05FEC09CE2AA9DF18C2A3D99 /* Debug */,
+				94D13341B4EAC60B7588F706 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		82D032659C0274B3DEDD1377 /* XCLocalSwiftPackageReference "Packages/HappyLabsCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/HappyLabsCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B742531CEC36E33277A7CEC4 /* HappyLabsCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HappyLabsCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 47C56472BA9F978F8681E95B /* Project object */;
+}

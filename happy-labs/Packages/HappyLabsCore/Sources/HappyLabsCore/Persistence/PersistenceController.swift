@@ -19,12 +19,19 @@ public final class PersistenceController: @unchecked Sendable {
             let description = NSPersistentStoreDescription(url: storeURL)
             description.cloudKitContainerOptions = nil
             description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+            description.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
+            description.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
             container.persistentStoreDescriptions = [description]
         }
 
         container.loadPersistentStores { _, error in
             if let error {
-                fatalError("Happy Labs store failed: \(error)")
+                fatalError(
+                    """
+                    Happy Labs store failed: \(error)
+                    Dev store reset required after ContinuitySource schema change. Production migration not implemented.
+                    """
+                )
             }
         }
 
@@ -59,13 +66,17 @@ public struct EntityRepository {
         self.context = context
     }
 
+    private func insert<T: NSManagedObject>(_ entityName: String) -> T {
+        NSEntityDescription.insertNewObject(forEntityName: entityName, into: context) as! T
+    }
+
     public func insertMboxImport(
         fileDisplayName: String,
         fileBookmarkData: Data?,
         messageCount: Int32,
         provenance: ProvenanceFields
     ) -> MboxImportEntity {
-        let entity = MboxImportEntity(context: context)
+        let entity: MboxImportEntity = insert("MboxImportEntity")
         entity.apply(provenance)
         entity.importedAt = Date()
         entity.fileDisplayName = fileDisplayName
@@ -79,7 +90,7 @@ public struct EntityRepository {
         mboxImportID: UUID,
         provenance: ProvenanceFields
     ) -> RawEmailEntity {
-        let entity = RawEmailEntity(context: context)
+        let entity: RawEmailEntity = insert("RawEmailEntity")
         entity.apply(provenance)
         entity.messageID = message.messageID
         entity.inReplyTo = message.inReplyTo
@@ -103,7 +114,7 @@ public struct EntityRepository {
         isOrphan: Bool,
         provenance: ProvenanceFields
     ) -> EmailThreadEntity {
-        let entity = EmailThreadEntity(context: context)
+        let entity: EmailThreadEntity = insert("EmailThreadEntity")
         entity.apply(provenance)
         entity.normalizedSubject = normalizedSubject
         entity.participantSummary = participantSummary
@@ -122,7 +133,7 @@ public struct EntityRepository {
         modelUsed: String,
         provenance: ProvenanceFields
     ) -> StoryCandidateEntity {
-        let entity = StoryCandidateEntity(context: context)
+        let entity: StoryCandidateEntity = insert("StoryCandidateEntity")
         entity.apply(provenance)
         entity.title = title
         entity.summary = summary
@@ -140,13 +151,35 @@ public struct EntityRepository {
         storyCandidateID: UUID,
         provenance: ProvenanceFields
     ) -> JournalEntryEntity {
-        let entity = JournalEntryEntity(context: context)
+        let entity: JournalEntryEntity = insert("JournalEntryEntity")
         entity.apply(provenance)
         entity.title = title
         entity.bodyMarkdown = bodyMarkdown
         entity.tags = tags
         entity.entryStatus = status
         entity.storyCandidateID = storyCandidateID
+        return entity
+    }
+
+    public func insertContinuitySource(
+        kind: ContinuitySourceKind,
+        title: String,
+        bodyText: String,
+        sourceURL: String?,
+        capturedAt: Date,
+        metadata: [String: String],
+        state: ContinuitySourceState,
+        provenance: ProvenanceFields
+    ) -> ContinuitySource {
+        let entity: ContinuitySource = insert("ContinuitySource")
+        entity.apply(provenance)
+        entity.kind = kind
+        entity.title = title
+        entity.bodyText = bodyText
+        entity.sourceURL = sourceURL
+        entity.capturedAt = capturedAt
+        entity.metadata = metadata
+        entity.state = state
         return entity
     }
 
@@ -168,7 +201,7 @@ public struct EntityRepository {
             sourceClass: sourceClass,
             contentFingerprint: fingerprint
         )
-        let entity = TransformationLogEntity(context: context)
+        let entity: TransformationLogEntity = insert("TransformationLogEntity")
         entity.apply(provenance)
         entity.codecName = codecName
         entity.codecVersion = codecVersion
@@ -189,7 +222,7 @@ public struct EntityRepository {
         editedBodyMarkdown: String?,
         provenance: ProvenanceFields
     ) -> HumanDecisionEntity {
-        let entity = HumanDecisionEntity(context: context)
+        let entity: HumanDecisionEntity = insert("HumanDecisionEntity")
         entity.apply(provenance)
         entity.journalEntryID = journalEntryID
         entity.decisionAction = action
@@ -205,7 +238,7 @@ public struct EntityRepository {
         reason: String?,
         provenance: ProvenanceFields
     ) -> DiscardedArtifactEntity {
-        let entity = DiscardedArtifactEntity(context: context)
+        let entity: DiscardedArtifactEntity = insert("DiscardedArtifactEntity")
         entity.apply(provenance)
         entity.journalEntryID = journalEntryID
         entity.storyCandidateID = storyCandidateID
@@ -242,6 +275,61 @@ public struct EntityRepository {
         return try context.fetch(request)
     }
 
+    public func fetchContinuitySources(
+        state: ContinuitySourceState? = nil,
+        kind: ContinuitySourceKind? = nil
+    ) throws -> [ContinuitySource] {
+        let request = NSFetchRequest<ContinuitySource>(entityName: "ContinuitySource")
+        var predicates: [NSPredicate] = []
+        if let state {
+            predicates.append(NSPredicate(format: "stateRaw == %@", state.rawValue))
+        }
+        if let kind {
+            predicates.append(NSPredicate(format: "kindRaw == %@", kind.rawValue))
+        }
+        if !predicates.isEmpty {
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+        }
+        request.sortDescriptors = [NSSortDescriptor(key: "capturedAt", ascending: false)]
+        return try context.fetch(request)
+    }
+
+    public func fetchContinuitySource(id: UUID) throws -> ContinuitySource? {
+        let request = NSFetchRequest<ContinuitySource>(entityName: "ContinuitySource")
+        request.predicate = NSPredicate(format: "provenanceID == %@", id as CVarArg)
+        request.fetchLimit = 1
+        return try context.fetch(request).first
+    }
+
+    @discardableResult
+    public func attachContinuitySource(
+        sourceID: UUID,
+        toJournalEntryID journalEntryID: UUID
+    ) throws -> Bool {
+        guard let source = try fetchContinuitySource(id: sourceID) else {
+            throw ContinuitySourceError.sourceNotFound
+        }
+        let entryRequest = NSFetchRequest<JournalEntryEntity>(entityName: "JournalEntryEntity")
+        entryRequest.predicate = NSPredicate(format: "provenanceID == %@", journalEntryID as CVarArg)
+        entryRequest.fetchLimit = 1
+        guard let entry = try context.fetch(entryRequest).first else {
+            throw ContinuitySourceError.journalEntryNotFound
+        }
+
+        if entry.attachedSources.contains(source) {
+            if source.state == .captured {
+                source.state = .attached
+            }
+            return false
+        }
+
+        entry.mutableSetValue(forKey: "attachedSources").add(source)
+        if source.state == .captured {
+            source.state = .attached
+        }
+        return true
+    }
+
     public func fetchMboxImport(id: UUID) throws -> MboxImportEntity? {
         let request = NSFetchRequest<MboxImportEntity>(entityName: "MboxImportEntity")
         request.predicate = NSPredicate(format: "provenanceID == %@", id as CVarArg)
@@ -268,6 +356,7 @@ public struct EntityRepository {
             "EmailThreadEntity",
             "StoryCandidateEntity",
             "JournalEntryEntity",
+            "ContinuitySource",
             "TransformationLogEntity",
             "HumanDecisionEntity",
             "DiscardedArtifactEntity"
@@ -281,5 +370,19 @@ public struct EntityRepository {
             }
         }
         return true
+    }
+}
+
+public enum ContinuitySourceError: Error, LocalizedError {
+    case sourceNotFound
+    case journalEntryNotFound
+
+    public var errorDescription: String? {
+        switch self {
+        case .sourceNotFound:
+            return "Continuity source not found."
+        case .journalEntryNotFound:
+            return "Journal entry not found."
+        }
     }
 }
