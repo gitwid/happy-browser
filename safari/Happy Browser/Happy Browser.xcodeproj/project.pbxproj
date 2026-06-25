@@ -266,6 +266,7 @@
 			inputPaths = (
 				"$(SRCROOT)/../../manifest.json",
 				"$(SRCROOT)/../../scripts/sync-safari-extension.js",
+				"$(SRCROOT)/../../scripts/sync-safari-extension.py",
 				"$(SRCROOT)/../../scripts/xcode-sync-safari-extension.sh",
 				"$(SRCROOT)/../../src",
 			);
