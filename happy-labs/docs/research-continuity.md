@@ -518,6 +518,12 @@ Annotation:
   on the substrate.
 - The next formal move is a legitimacy transition algebra, not a feature list.
 
+Immediate testbeds:
+
+- [Legitimacy Transition Algebra](testbeds/legitimacy-transition-algebra.md)
+- [Subjective Evidence Taxonomy](testbeds/subjective-evidence-taxonomy.md)
+- [Reverse Traversal Closure](testbeds/reverse-traversal-closure.md)
+
 ## Working Formalization
 
 The current minimal shape can be expressed as:
