@@ -112,7 +112,6 @@ unless independent evidence supports those claims.
 
 Partial.
 
-The five classes are sufficient for the fixture, but "observation" and
-"external corroboration" need a sharper boundary when the observation is itself
-mediated through a document.
-
+The five classes are sufficient for the fixture. The unresolved boundary is the
+difference between "observation" and "external corroboration" when the
+observation is itself mediated through a document.

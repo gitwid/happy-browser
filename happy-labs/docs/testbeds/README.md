@@ -17,6 +17,18 @@ Each testbed should answer one question:
 2. [Subjective Evidence Taxonomy](subjective-evidence-taxonomy.md)
 3. [Reverse Traversal Closure](reverse-traversal-closure.md)
 
+## Supervision
+
+Use [Testbed Supervision Protocol](supervision-protocol.md) to review whether a
+testbed is strong enough to carry continuity.
+
+Mechanical self-test:
+
+```sh
+cd happy-labs
+scripts/validate_research_testbeds.py
+```
+
 ## Admission Rule
 
 Add a testbed only when a concept is either:
@@ -42,4 +54,3 @@ Add a testbed only when a concept is either:
 - Deferred: the fixture lacks enough evidence to evaluate the concept.
 - Kudzu risk: the concept starts requiring machinery that is not justified by
   the fixture.
-
