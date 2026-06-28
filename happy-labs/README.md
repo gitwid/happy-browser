@@ -4,6 +4,8 @@ Attention management for user-held email: import a Mail.app `.mbox` export, extr
 
 Happy Labs is **independent** from [Happy Browser](../README.md). No shared code, entitlements, or linkage in Phase 0.
 
+Research continuity: [docs/research-continuity.md](docs/research-continuity.md)
+
 ## Invariants
 
 - Human = editor. Agent = instrument. Every retention path requires explicit human approval.
