@@ -17,6 +17,12 @@ Each testbed should answer one question:
 2. [Subjective Evidence Taxonomy](subjective-evidence-taxonomy.md)
 3. [Reverse Traversal Closure](reverse-traversal-closure.md)
 
+## Theoretical Core
+
+[Legitimacy Through Restoration: The Palindromic Capability Architecture](../pca_theoretical_core.md)
+records the convergent theoretical statement that these testbeds currently
+pressure-test.
+
 ## Supervision
 
 Use [Testbed Supervision Protocol](supervision-protocol.md) to review whether a

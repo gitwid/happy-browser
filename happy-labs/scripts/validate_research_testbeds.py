@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 TESTBEDS = DOCS / "testbeds"
 CONTINUITY = DOCS / "research-continuity.md"
+PCA_CORE = DOCS / "pca_theoretical_core.md"
 INDEX = TESTBEDS / "README.md"
 SUPERVISION = TESTBEDS / "supervision-protocol.md"
 
@@ -178,6 +179,7 @@ def main() -> int:
 
     try:
         continuity = load_text(CONTINUITY)
+        pca_core = load_text(PCA_CORE)
         index = load_text(INDEX)
         supervision = load_text(SUPERVISION)
     except FileNotFoundError as exc:
@@ -186,8 +188,12 @@ def main() -> int:
 
     testbed_links = list(TESTBED_FILES.keys())
     errors.extend(assert_links("research-continuity.md", continuity, [f"testbeds/{link}" for link in testbed_links]))
+    errors.extend(assert_links("research-continuity.md", continuity, ["pca_theoretical_core.md"]))
     errors.extend(assert_links("testbeds/README.md", index, testbed_links))
+    errors.extend(assert_links("testbeds/README.md", index, ["../pca_theoretical_core.md"]))
     errors.extend(assert_links("testbeds/README.md", index, ["supervision-protocol.md"]))
+    errors.extend(assert_links("pca_theoretical_core.md", pca_core, [f"testbeds/{link}" for link in testbed_links]))
+    errors.extend(assert_links("pca_theoretical_core.md", pca_core, ["testbeds/supervision-protocol.md"]))
     errors.extend(assert_supervision_protocol(supervision))
 
     for filename, config in TESTBED_FILES.items():
@@ -211,4 +217,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

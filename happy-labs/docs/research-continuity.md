@@ -524,6 +524,10 @@ Immediate testbeds:
 - [Subjective Evidence Taxonomy](testbeds/subjective-evidence-taxonomy.md)
 - [Reverse Traversal Closure](testbeds/reverse-traversal-closure.md)
 
+Related theoretical core:
+
+- [Legitimacy Through Restoration: The Palindromic Capability Architecture](pca_theoretical_core.md)
+
 ## Working Formalization
 
 The current minimal shape can be expressed as:
