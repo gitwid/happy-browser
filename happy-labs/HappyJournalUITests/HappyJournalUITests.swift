@@ -27,6 +27,24 @@ final class HappyJournalUITests: XCTestCase {
         waitForExpectations(timeout: 5)
 
         XCTAssertTrue(app.staticTexts["recoveryPacketPath"].waitForExistence(timeout: 5))
+
+        let runButton = app.buttons["runRecoveryPassButton"]
+        XCTAssertTrue(runButton.waitForExistence(timeout: 5))
+        runButton.tap()
+
+        let recoveryPredicate = NSPredicate(format: "label CONTAINS %@", "Recovery pass wrote 5 files")
+        expectation(for: recoveryPredicate, evaluatedWith: status)
+        waitForExpectations(timeout: 5)
+
+        let compareButton = app.buttons["compareAgainstBaselineButton"]
+        XCTAssertTrue(compareButton.waitForExistence(timeout: 5))
+        compareButton.tap()
+
+        let comparisonPredicate = NSPredicate(format: "label CONTAINS %@", "Comparison written against baseline")
+        expectation(for: comparisonPredicate, evaluatedWith: status)
+        waitForExpectations(timeout: 5)
+
+        XCTAssertTrue(app.buttons["shareRecoveryPacketButton"].waitForExistence(timeout: 5))
     }
 
     func testSeededFixtureApprovesDraftThroughHumanReviewGate() {

@@ -184,25 +184,11 @@ private struct RecoverabilityBuilderView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(harness.artifacts) { artifact in
-                            HStack(spacing: 10) {
-                                Image(systemName: "doc")
-                                    .foregroundStyle(.secondary)
-                                Text(artifact.displayName)
-                                    .font(.caption)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                                Spacer()
-                                Button {
-                                    harness.removeArtifact(artifact)
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundStyle(.secondary)
-                            }
-                            .padding(10)
-                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        ForEach($harness.artifacts) { $artifact in
+                            ArtifactAnnotationCard(
+                                artifact: $artifact,
+                                onRemove: { harness.removeArtifact(artifact) }
+                            )
                         }
                     }
                 }
@@ -242,6 +228,33 @@ private struct RecoverabilityBuilderView: View {
                                 .textSelection(.enabled)
                                 .accessibilityIdentifier("recoveryPacketPath")
                         }
+
+                        Button {
+                            harness.runRecoveryPass()
+                        } label: {
+                            Label("Run recovery pass", systemImage: "sparkle.magnifyingglass")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .disabled(harness.isWorking)
+                        .liquidGlassProminentButton()
+                        .accessibilityIdentifier("runRecoveryPassButton")
+
+                        Button {
+                            harness.compareAgainstBaseline()
+                        } label: {
+                            Label("Compare against baseline", systemImage: "checklist.checked")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .disabled(harness.isWorking)
+                        .liquidGlassSecondaryButton()
+                        .accessibilityIdentifier("compareAgainstBaselineButton")
+
+                        ShareLink(item: packet.folderURL) {
+                            Label("Share packet", systemImage: "square.and.arrow.up")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .liquidGlassSecondaryButton()
+                        .accessibilityIdentifier("shareRecoveryPacketButton")
                     }
 
                     if showPreview {
@@ -304,6 +317,52 @@ private struct RecoverabilityBuilderView: View {
         } catch {
             harness.statusMessage = "Packet creation failed: \(error.localizedDescription)"
         }
+    }
+}
+
+private struct ArtifactAnnotationCard: View {
+    @Binding var artifact: RecoveryTestArtifact
+    let onRemove: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "doc")
+                    .foregroundStyle(.secondary)
+                Text(artifact.displayName)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer()
+                Button {
+                    onRemove()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+            }
+
+            MultilinePromptField(
+                title: "Why included",
+                text: $artifact.whyIncluded,
+                minHeight: 70,
+                accessibilityIdentifier: "artifactWhyIncludedEditor"
+            )
+
+            MultilinePromptField(
+                title: "What this meant",
+                text: $artifact.whatThisMeant,
+                minHeight: 70,
+                accessibilityIdentifier: "artifactMeaningEditor"
+            )
+
+            Text("Stored in human-context only; blind recovery reads artifacts/ without these notes.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
