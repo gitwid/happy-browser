@@ -42,6 +42,12 @@ swift run HappyLabs
 
 Core logic lives in `Packages/HappyLabsCore/`. SwiftUI shell in `HappyLabsApp/`.
 
+## Research Program
+
+Appendix A is currently reduced to legitimacy instrumentation. PCA is retained only as a speculative substrate for instruments; the active projects are the round-trip drift metric and receipt discriminator.
+
+See [Appendix A - Research Program Reduction](APPENDIX_A_RESEARCH_PROGRAM_REDUCTION.md).
+
 ## Acceptance test scope
 
 The `500 → 20` test uses a **designed synthetic corpus** (20 threads × 25 messages). It proves the codec chain runs and logs — **not** that stories are worth reading. Quality validation is Phase 0.1.
