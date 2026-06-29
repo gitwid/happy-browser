@@ -44,7 +44,7 @@ Core logic lives in `Packages/HappyLabsCore/`. SwiftUI shell in `HappyLabsApp/`.
 
 ## Research Program
 
-Appendix A is currently reduced to legitimacy instrumentation. PCA is retained only as a speculative substrate for instruments; the active projects are the round-trip drift metric and receipt discriminator.
+Appendix A is currently reduced to legitimacy instrumentation. PCA is retained only as a speculative substrate for instruments; the active projects are the round-trip drift metric and receipt discriminator. The first drift metric implementation lives in `HappyLabsCore` as `RoundTripDriftMetric`.
 
 See [Appendix A - Research Program Reduction](APPENDIX_A_RESEARCH_PROGRAM_REDUCTION.md).
 

@@ -16,7 +16,7 @@ The instruments do not exist to defend the framework.
 
 ### 1. Round-Trip Drift Metric
 
-Status: buildable now.
+Status: initial instrument implemented in `RoundTripDriftMetric`.
 
 Purpose:
 
@@ -34,6 +34,15 @@ External comparators:
 - task-completion preservation
 
 This is the first empirical project.
+
+Initial implementation:
+
+- source-anchor preservation
+- source-order preservation
+- numeric/date/identifier preservation
+- negation/refusal preservation
+- introduced-material ratio
+- stable/review/revise disposition
 
 ### 2. Receipt Discriminator
 
