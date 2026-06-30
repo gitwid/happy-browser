@@ -1,5 +1,18 @@
 # Product Notes
 
+## Browser Kernel Modules
+
+Content scripts load in this order (see `manifest.json`):
+
+| Module | Role |
+|--------|------|
+| `navigation-scoring.js` | DOM analysis, candidate ranking, confidence tiers |
+| `navigation-outcome.js` | Page snapshots, failed-click memory, navigation outcome observation |
+| `navigation-rail.js` | Shadow-DOM rail UI — buttons, toggle, status, inspector |
+| `content.js` | Orchestrator — settings, listeners, navigate, scroll fallback |
+
+Future Happy Fill / Query modules should follow the same pattern: isolated adapter + legible preview surface, wired from a thin `content.js` orchestrator.
+
 ## Neutral Test Fixtures
 
 Use reserved example domains in public docs and tests. Avoid naming real commercial sites, customer pages, pharmacies, shops, or partner organizations in committed fixtures.
