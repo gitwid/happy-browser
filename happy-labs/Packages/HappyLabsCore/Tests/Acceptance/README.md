@@ -30,7 +30,7 @@ The report regenerates after each human decision. Export via `CoherenceReportSer
 
 ## What passing does not prove
 
-Story quality, summarization usefulness, or real-world mailbox behavior. Those belong to Phase 0.1 manual validation on exported `.mbox` files.
+Story quality, summarization usefulness, or real-world mailbox behavior. Those belong to Phase 0.1 manual validation — see [PHASE_0_1_VALIDATION.md](../../../../PHASE_0_1_VALIDATION.md) and run `swift run HappyLabsValidate` or `./scripts/run_phase_0_1.sh`.
 
 ## Regenerate fixture locally
 
