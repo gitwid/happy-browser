@@ -82,6 +82,10 @@ Release/Archive builds keep the production identity **Happy Browser**.
 
 For unsigned development builds, Safari's unsigned extension support must be enabled from Safari's developer settings.
 
+## Documentation
+
+Product family doctrine, dev workflows, and reviews live in [docs/](docs/). Start with [docs/happy-layer.md](docs/happy-layer.md) for the Happy Layer framework or [docs/project-review-2026-06.md](docs/project-review-2026-06.md) for a cross-cutting project review.
+
 ## Release Notes
 
 Release planning lives in [docs/release-checklist.md](docs/release-checklist.md).

@@ -2,7 +2,7 @@
 
 Attention management for user-held email: import a Mail.app `.mbox` export, extract story drafts, review every transformation, archive journal entries with full provenance.
 
-Happy Labs is **independent** from [Happy Browser](../README.md). No shared code, entitlements, or linkage in Phase 0.
+Happy Labs is **independent** from [Happy Browser](../README.md). No shared code, entitlements, or linkage in Phase 0. Shared product-family doctrine lives in [docs/happy-layer.md](../docs/happy-layer.md); a cross-cutting review is in [docs/project-review-2026-06.md](../docs/project-review-2026-06.md).
 
 ## Invariants
 
