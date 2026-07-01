@@ -234,12 +234,22 @@
     }
 
     if (direction === "next" && isLoadMoreControl(normalizedText, contextText)) {
-      score += 58;
-      scoreParts.push("load-more-control");
-      if (tagName === "button" && normalizeText(element.textContent) === "mehr laden") {
-        score += 36;
-        scoreParts.push("exact-load-more-button");
+      if (isCommentExpansionControl(normalizedText, contextText)) {
+        score -= 90;
+        scoreParts.push("comment-expansion-control");
+      } else {
+        score += 58;
+        scoreParts.push("load-more-control");
+        if (tagName === "button" && normalizeText(element.textContent) === "mehr laden") {
+          score += 36;
+          scoreParts.push("exact-load-more-button");
+        }
       }
+    }
+
+    if (isMediaCarouselControl(element, direction, normalizedText, contextText)) {
+      score += 64;
+      scoreParts.push("media-carousel-control");
     }
 
     const paginationNumberScore = scorePaginationNumberLink(element, href, locationObject, direction, normalizedText, contextText);
@@ -541,6 +551,63 @@
 
   function isLoadMoreControl(text, context) {
     return /\bmehr\s+laden\b|\bload\s+more\b|\bshow\s+more\b/.test(`${text} ${context}`);
+  }
+
+  function isCommentExpansionControl(text, context) {
+    const combined = `${text} ${context}`;
+    return /\b(load|show|view)\s+(more|all)?\s*(comments?|replies?)\b|\bcomments?\b|\breplies?\b/.test(combined);
+  }
+
+  function isMediaCarouselControl(element, direction, text, context) {
+    if (!element || !element.closest || !isDirectionalMediaControlText(direction, text)) {
+      return false;
+    }
+
+    if (isLoadMoreControl(text, context) || isCommentExpansionControl(text, context)) {
+      return false;
+    }
+
+    const rect = element.getBoundingClientRect();
+    if (!rect || rect.width < 16 || rect.height < 16) {
+      return false;
+    }
+
+    let current = element.parentElement;
+    let depth = 0;
+    while (current && depth < 8) {
+      if (hasLargeMediaPeer(current, element)) {
+        return true;
+      }
+      current = current.parentElement;
+      depth += 1;
+    }
+
+    return false;
+  }
+
+  function isDirectionalMediaControlText(direction, text) {
+    if (direction === "next") {
+      return /(^|[^a-z0-9])(next|arrow-right|chevron-right|›|»|→)([^a-z0-9]|$)/i.test(text);
+    }
+
+    return /(^|[^a-z0-9])(previous|prev|go back|back|arrow-left|chevron-left|‹|«|←)([^a-z0-9]|$)/i.test(text);
+  }
+
+  function hasLargeMediaPeer(container, control) {
+    if (!container || !container.querySelectorAll) {
+      return false;
+    }
+
+    return Array.from(container.querySelectorAll("img, video, picture, canvas, [role='img'], [role='button'] img, [role='button'] video"))
+      .slice(0, 24)
+      .some((media) => {
+        if (media === control || control.contains && control.contains(media)) {
+          return false;
+        }
+
+        const rect = media.getBoundingClientRect();
+        return rect && rect.width >= 180 && rect.height >= 180 && rect.width * rect.height >= 50000;
+      });
   }
 
   function isPaginationOrLoadMore(text, context) {

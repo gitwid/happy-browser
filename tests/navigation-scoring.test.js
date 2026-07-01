@@ -19,7 +19,11 @@ function makeDocument(html, url = "https://example.com/gallery/page/2/") {
     if (this.hidden || this.hasAttribute("hidden")) {
       return { width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 };
     }
-    return { width: 96, height: 44, top: 0, left: 0, right: 96, bottom: 44 };
+    const width = Number(this.getAttribute("data-width")) || 96;
+    const height = Number(this.getAttribute("data-height")) || 44;
+    const left = Number(this.getAttribute("data-left")) || 0;
+    const top = Number(this.getAttribute("data-top")) || 0;
+    return { width, height, top, left, right: left + width, bottom: top + height };
   };
 
   return dom.window.document;
@@ -63,6 +67,51 @@ run("treats javascript-only carousel controls as tentative", () => {
   assert.equal(result.directions.next.confidence, "tentative");
   assert.equal(result.directions.next.best.type, "click");
   assert.equal(result.directions.next.best.preflight.jsOnly, true);
+});
+
+run("prefers media carousel controls over social comment loading", () => {
+  const document = makeDocument(`
+    <main>
+      <article class="post">
+        <section class="media-strip">
+          <button aria-label="Go back" data-width="46" data-height="62">‹</button>
+          <div role="button" class="media-item">
+            <img src="/slide-3.jpg" data-width="479" data-height="599" alt="">
+          </div>
+          <button aria-label="Next" data-width="46" data-height="62">›</button>
+        </section>
+        <section class="comments">
+          <button data-width="240" data-height="40">Load more comments</button>
+          <div role="button" data-width="244" data-height="27">View all 1 replies</div>
+        </section>
+      </article>
+    </main>
+  `, "https://social.example.test/p/abc/?img_index=3");
+  const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
+
+  assert.equal(result.state, "tentative");
+  assert.equal(result.directions.next.best.type, "click");
+  assert.match(result.directions.next.best.text, /Next/);
+  assert.match(result.directions.next.best.reason.join(" "), /media-carousel-control/);
+  assert.equal(result.directions.previous.best.type, "click");
+  assert.match(result.directions.previous.best.text, /Go back/);
+});
+
+run("does not treat social comment expansion as primary navigation", () => {
+  const document = makeDocument(`
+    <main>
+      <article class="post">
+        <section class="comments">
+          <button data-width="240" data-height="40">Load more comments</button>
+          <div role="button" data-width="244" data-height="27">View all 1 replies</div>
+        </section>
+      </article>
+    </main>
+  `, "https://social.example.test/p/abc/");
+  const result = scoring.analyzeNavigation(document, { location: document.defaultView.location });
+
+  assert.equal(result.state, "none");
+  assert.equal(result.directions.next.confidence, "none");
 });
 
 run("avoids unrelated menu and form controls", () => {

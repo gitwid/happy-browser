@@ -31,7 +31,7 @@
 /* Begin PBXFileReference section */
 		1996AAD6ADFB9199E5F0E8D1 /* RecoveryArtifactExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryArtifactExtractor.swift; sourceTree = "<group>"; };
 		3BAB1A14E324C48242280F56 /* HappyJournalUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappyJournalUITests.swift; sourceTree = "<group>"; };
-		4C7A3F38DF1AAA72369E52B5 /* HappyJournal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HappyJournal.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4C7A3F38DF1AAA72369E52B5 /* HappyJournal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HappyJournal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		89093D4FD8AAA6ED026C3682 /* RecoveryPassGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryPassGenerator.swift; sourceTree = "<group>"; };
 		92FB539978A49348E25866AF /* HappyLabsCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = HappyLabsCore; path = Packages/HappyLabsCore; sourceTree = SOURCE_ROOT; };
 		BDC624296EF45280A1BAF58F /* RecoveryTestPacketWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryTestPacketWriter.swift; sourceTree = "<group>"; };
@@ -155,9 +155,6 @@
 					1767ABAD97382A45BA37C326 = {
 						TestTargetID = 6F5E87CEC92AFF98D06DDE97;
 					};
-					6F5E87CEC92AFF98D06DDE97 = {
-						DevelopmentTeam = "";
-					};
 				};
 			};
 			buildConfigurationList = B9F802A55329FEBC17D2FA89 /* Build configuration list for PBXProject "HappyJournal" */;
@@ -223,7 +220,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8T4P657A33;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Happy Journal";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -282,7 +279,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8T4P657A33;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Happy Journal";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";

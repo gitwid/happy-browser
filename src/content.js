@@ -286,6 +286,14 @@
     }
   `;
 
+  if (window.__happyBrowserTestHooksRequested) {
+    window.__HappyBrowserTestHooks = {
+      capturePageSnapshot,
+      didPageAdvance,
+      getVisibleMediaSignature
+    };
+  }
+
   loadSettings();
   createRail();
   setRailState("scanning", "Scanning");
@@ -625,7 +633,7 @@
   }
 
   function ensureRailAttached() {
-    if (!document.documentElement) {
+    if (typeof document === "undefined" || !document.documentElement) {
       return;
     }
 
@@ -839,12 +847,7 @@
     window.setTimeout(() => {
       const after = capturePageSnapshot();
       const before = state.preNavigationSnapshot;
-      const advanced = Boolean(before && (
-        before.href !== after.href ||
-        before.title !== after.title ||
-        Math.abs(before.bodyTextLength - after.bodyTextLength) > 120 ||
-        before.activeElementSignature !== after.activeElementSignature
-      ));
+      const advanced = didPageAdvance(before, after);
 
       if (state.debug) {
         console.debug("[Happy Browser] navigation outcome", {
@@ -871,9 +874,56 @@
     return {
       href: window.location.href,
       title: document.title,
-      bodyTextLength: document.body ? document.body.innerText.length : 0,
-      activeElementSignature: active ? `${active.tagName}:${active.id}:${active.className}:${active.getAttribute("aria-current") || ""}` : ""
+      bodyTextLength: document.body ? getBodyTextLength() : 0,
+      activeElementSignature: active ? `${active.tagName}:${active.id}:${active.className}:${active.getAttribute("aria-current") || ""}` : "",
+      mediaSignature: getVisibleMediaSignature()
     };
+  }
+
+  function getBodyTextLength() {
+    return String(document.body.innerText || document.body.textContent || "").length;
+  }
+
+  function didPageAdvance(before, after) {
+    return Boolean(before && after && (
+      before.href !== after.href ||
+      before.title !== after.title ||
+      Math.abs(before.bodyTextLength - after.bodyTextLength) > 120 ||
+      before.activeElementSignature !== after.activeElementSignature ||
+      before.mediaSignature !== after.mediaSignature
+    ));
+  }
+
+  function getVisibleMediaSignature() {
+    const pieces = [];
+    document.querySelectorAll("main img, main video, article img, article video, [role='main'] img, [role='main'] video, img, video").forEach((element) => {
+      if (pieces.length >= 6) {
+        return;
+      }
+
+      const rect = element.getBoundingClientRect();
+      const visibleWidth = Math.max(0, Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0));
+      const visibleHeight = Math.max(0, Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0));
+      const visibleArea = visibleWidth * visibleHeight;
+      if (visibleArea < 30000) {
+        return;
+      }
+
+      const source = element.currentSrc || element.src || element.poster || "";
+      const alt = element.getAttribute("alt") || "";
+      pieces.push([
+        element.tagName,
+        source.slice(0, 180),
+        alt.slice(0, 80),
+        Math.round(rect.left),
+        Math.round(rect.top),
+        Math.round(rect.width),
+        Math.round(rect.height),
+        Math.round(visibleArea)
+      ].join(":"));
+    });
+
+    return pieces.join("|");
   }
 
   function rememberFailedCandidate(candidate) {
