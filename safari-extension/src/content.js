@@ -38,12 +38,15 @@
       runId: 0,
       userDisabled: false,
       frameFallbacks: 0,
+      lastDetailRequestAt: 0,
       mode: "ghost"
     },
     versionLabel: getExtensionVersionLabel()
   };
   const ATTENTION_QUEUE_STORAGE_KEY = "happyAttentionQueue";
   const RA_FILTER_PAGE_STYLE_ID = "happy-browser-ra-filter-style";
+  const RA_DETAIL_SCAN_CONCURRENCY = 1;
+  const RA_DETAIL_REQUEST_MIN_INTERVAL_MS = 650;
   const RA_LGBTQ_PATTERNS = [
     { label: "sex positive", pattern: /\bsex[\s-]*positive\b/i },
     { label: "awareness team", pattern: /\bawareness\s+team\b/i },
@@ -1779,6 +1782,7 @@
     state.raFilter.running = true;
     state.raFilter.lastSignature = signature;
     state.raFilter.frameFallbacks = 0;
+    state.raFilter.lastDetailRequestAt = 0;
     state.raFilter.status = {
       state: "running",
       total: cards.length,
@@ -1787,7 +1791,8 @@
       today: 0,
       hidden: 0,
       unknown: 0,
-      errors: 0
+      errors: 0,
+      sources: {}
     };
     ensureRaFilterPageStyle();
     setRaFilterPageMode();
@@ -1795,62 +1800,15 @@
 
     const today = options.today || getBerlinTodayISO(options.now || new Date());
     const detailsByHref = options.detailsByHref || null;
-    const results = [];
+    const results = await scanRaEventCards(cards, {
+      today,
+      detailsByHref,
+      runId,
+      concurrency: options.concurrency
+    });
 
-    for (const card of cards) {
-      if (runId !== state.raFilter.runId) {
-        return state.raFilter.status;
-      }
-
-      markRaCard(card.element, "loading");
-      let result;
-      try {
-        if (card.dateHint && !raDateHintMatchesToday(card.dateHint, today)) {
-          result = {
-            href: card.href,
-            title: card.title,
-            today: false,
-            signals: [],
-            matched: false
-          };
-        } else {
-          const detail = detailsByHref && detailsByHref[card.href] ? detailsByHref[card.href] : await getRaEventDetail(card.href);
-          const text = [
-            card.title,
-            detail.title,
-            detail.description,
-            detail.signalText
-          ].join("\n");
-          const todayMatch = isRaEventToday(detail, card, today);
-          const signals = getRaLgbtqSignals(text);
-          const matched = todayMatch && signals.length > 0;
-          result = {
-            href: card.href,
-            title: detail.title || card.title,
-            today: todayMatch,
-            signals,
-            matched
-          };
-        }
-      } catch (error) {
-        result = {
-          href: card.href,
-          title: card.title,
-          today: raDateHintMatchesToday(card.dateHint, today),
-          signals: [],
-          matched: false,
-          error: error && error.message ? error.message : String(error)
-        };
-        state.raFilter.status.errors += 1;
-      }
-      results.push(result);
-      markRaCard(card.element, getRaFilterCardStatus(result), result);
-      state.raFilter.status.scanned += 1;
-      state.raFilter.status.today += result.today ? 1 : 0;
-      state.raFilter.status.matched += result.matched ? 1 : 0;
-      state.raFilter.status.hidden += !result.matched && !result.error ? 1 : 0;
-      state.raFilter.status.unknown += result.error ? 1 : 0;
-      updateRaFilterUi();
+    if (runId !== state.raFilter.runId) {
+      return state.raFilter.status;
     }
 
     state.raFilter.running = false;
@@ -1864,11 +1822,98 @@
       unknown: results.filter((result) => result.error).length,
       errors: results.filter((result) => result.error).length,
       todayISO: today,
+      sources: countRaResultSources(results),
       results
     };
     updateRaFilterUi();
     updateInspector();
     return state.raFilter.status;
+  }
+
+  async function scanRaEventCards(cards, options) {
+    const results = [];
+    let index = 0;
+    const concurrency = Math.max(1, Math.min(
+      options.concurrency || RA_DETAIL_SCAN_CONCURRENCY,
+      RA_DETAIL_SCAN_CONCURRENCY,
+      cards.length || 1
+    ));
+
+    const workers = Array.from({ length: concurrency }, async () => {
+      while (index < cards.length) {
+        if (options.runId !== state.raFilter.runId) {
+          return;
+        }
+
+        const card = cards[index];
+        index += 1;
+        const result = await scanRaEventCard(card, options);
+        if (options.runId !== state.raFilter.runId) {
+          return;
+        }
+
+        results.push(result);
+        markRaCard(card.element, getRaFilterCardStatus(result), result);
+        state.raFilter.status.scanned += 1;
+        state.raFilter.status.today += result.today ? 1 : 0;
+        state.raFilter.status.matched += result.matched ? 1 : 0;
+        state.raFilter.status.hidden += !result.matched && !result.error ? 1 : 0;
+        state.raFilter.status.unknown += result.error ? 1 : 0;
+        state.raFilter.status.errors += result.error ? 1 : 0;
+        incrementRaSourceCount(state.raFilter.status.sources, result.source || "unknown");
+        updateRaFilterUi();
+      }
+    });
+
+    await Promise.all(workers);
+    return results;
+  }
+
+  async function scanRaEventCard(card, options) {
+    markRaCard(card.element, "loading");
+    try {
+      if (card.dateHint && !raDateHintMatchesToday(card.dateHint, options.today)) {
+        return {
+          href: card.href,
+          title: card.title,
+          today: false,
+          signals: [],
+          matched: false,
+          source: "date-skip"
+        };
+      }
+
+      const fixtureDetail = options.detailsByHref && options.detailsByHref[card.href];
+      const detail = fixtureDetail || await getRaEventDetail(card.href);
+      const source = detail.source || (fixtureDetail ? "fixture" : "unknown");
+      const text = [
+        card.title,
+        detail.title,
+        detail.description,
+        detail.signalText
+      ].join("\n");
+      const todayMatch = isRaEventToday(detail, card, options.today);
+      const signals = getRaLgbtqSignals(text);
+      const matched = todayMatch && signals.length > 0;
+      return {
+        href: card.href,
+        title: detail.title || card.title,
+        today: todayMatch,
+        signals,
+        matched,
+        source
+      };
+    } catch (error) {
+      return {
+        href: card.href,
+        title: card.title,
+        today: raDateHintMatchesToday(card.dateHint, options.today),
+        signals: [],
+        matched: false,
+        error: error && error.message ? error.message : String(error),
+        source: error && error.happyRaAntiBot ? "blocked" : "unknown"
+      };
+    }
   }
 
   function isRaBerlinEventsPage() {
@@ -1964,40 +2009,92 @@
       return state.raFilter.detailCache.get(href);
     }
 
-    const html = await fetchRaEventDetailHtml(href);
-    const detail = parseRaEventDetailHtml(html, href);
-    if (detail.hasEventData) {
-      state.raFilter.detailCache.set(href, detail);
-      return detail;
+    let lastError = null;
+    await waitForRaDetailRequestPace();
+    const directDetail = await getRaEventDetailFromHtmlSource(href, "direct", () => fetchRaEventDetailDirect(href)).catch((error) => {
+      lastError = error;
+      return null;
+    });
+    if (isRaAntiBotError(lastError)) {
+      throw lastError;
+    }
+    if (directDetail) {
+      state.raFilter.detailCache.set(href, directDetail);
+      return directDetail;
+    }
+
+    await waitForRaDetailRequestPace();
+    const backgroundDetail = await getRaEventDetailFromHtmlSource(href, "background", () => fetchRaEventDetailViaBackground(href)).catch((error) => {
+      lastError = isRaAntiBotError(error) ? error : lastError || error;
+      return null;
+    });
+    if (isRaAntiBotError(lastError)) {
+      throw lastError;
+    }
+    if (backgroundDetail) {
+      state.raFilter.detailCache.set(href, backgroundDetail);
+      return backgroundDetail;
     }
 
     if (state.raFilter.frameFallbacks >= 3) {
-      throw new Error("RA detail missing event metadata");
+      throw lastError || new Error("RA detail missing event metadata");
     }
 
     state.raFilter.frameFallbacks += 1;
+    await waitForRaDetailRequestPace();
     const frameDetail = await getRaEventDetailFromFrame(href);
+    frameDetail.source = "frame";
     state.raFilter.detailCache.set(href, frameDetail);
     return frameDetail;
   }
 
-  async function fetchRaEventDetailHtml(href) {
-    let directError = null;
-    try {
-      const response = await fetch(href, { credentials: "include" });
-      if (!response.ok) {
-        throw new Error(`RA detail ${response.status}`);
-      }
-      return await response.text();
-    } catch (error) {
-      directError = error;
+  async function waitForRaDetailRequestPace() {
+    if (window.__happyBrowserTestHooksRequested) {
+      return;
     }
 
-    try {
-      return await fetchRaEventDetailViaBackground(href);
-    } catch (_backgroundError) {
-      throw directError || _backgroundError;
+    const now = Date.now();
+    const elapsed = now - (state.raFilter.lastDetailRequestAt || 0);
+    if (elapsed > 0 && elapsed < RA_DETAIL_REQUEST_MIN_INTERVAL_MS) {
+      await delay(RA_DETAIL_REQUEST_MIN_INTERVAL_MS - elapsed);
     }
+    state.raFilter.lastDetailRequestAt = Date.now();
+  }
+
+  function delay(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  async function getRaEventDetailFromHtmlSource(href, source, fetchHtml) {
+    const html = await fetchHtml();
+    const detail = parseRaEventDetailHtml(html, href);
+    if (detail.antiBotBlocked) {
+      throw makeRaAntiBotError(source);
+    }
+    if (detail.hasEventData) {
+      detail.source = source;
+      return detail;
+    }
+
+    return null;
+  }
+
+  function countRaResultSources(results) {
+    const counts = {};
+    results.forEach((result) => incrementRaSourceCount(counts, result.source || "unknown"));
+    return counts;
+  }
+
+  function incrementRaSourceCount(counts, source) {
+    counts[source] = (counts[source] || 0) + 1;
+  }
+
+  async function fetchRaEventDetailDirect(href) {
+    const response = await fetch(href, { credentials: "include" });
+    if (!response.ok) {
+      throw new Error(`RA detail ${response.status}`);
+    }
+    return response.text();
   }
 
   function fetchRaEventDetailViaBackground(href) {
@@ -2084,6 +2181,10 @@
         }
 
         const detail = parseRaEventDetailHtml(html, href);
+        if (detail.antiBotBlocked) {
+          reject(makeRaAntiBotError("frame"));
+          return;
+        }
         if (!detail.hasEventData) {
           reject(new Error("RA detail missing event metadata"));
           return;
@@ -2118,8 +2219,33 @@
       startDate: event.startDate || "",
       description,
       signalText,
+      antiBotBlocked: isRaAntiBotDetailHtml(doc, html),
       hasEventData
     };
+  }
+
+  function isRaAntiBotDetailHtml(doc, html) {
+    const text = [
+      doc.title || "",
+      doc.body ? getCompactText(doc.body).slice(0, 3000) : "",
+      String(html || "").slice(0, 4000)
+    ].join("\n");
+    return Boolean(
+      doc.querySelector("iframe[src*='captcha-delivery.com'], iframe[src*='datadome']") ||
+      /captcha-delivery\.com|geo\.captcha|datadome/i.test(String(html || "")) ||
+      /captcha|verify\s+that\s+you\s+are\s+human|verify\s+you\s+are\s+human|blocked/i.test(text)
+    );
+  }
+
+  function makeRaAntiBotError(source) {
+    const error = new Error("RA detail blocked by anti-bot challenge");
+    error.happyRaSource = source || "blocked";
+    error.happyRaAntiBot = true;
+    return error;
+  }
+
+  function isRaAntiBotError(error) {
+    return Boolean(error && error.happyRaAntiBot);
   }
 
   function extractRaNextDataEventText(doc, href) {
@@ -2381,6 +2507,7 @@
     if (result) {
       element.dataset.happyRaToday = String(result.today);
       element.dataset.happyRaSignals = result.signals.join(", ");
+      element.dataset.happyRaSource = result.source || "";
       element.setAttribute("title", getRaFilterCardTitle(result));
     }
   }
@@ -2398,7 +2525,8 @@
       return "Happy Browser: detail unavailable";
     }
 
-    return result.signals.length ? `Happy Browser: ${result.signals.join(", ")}` : "Happy Browser: filtered out";
+    const source = result.source ? ` (${result.source})` : "";
+    return result.signals.length ? `Happy Browser: ${result.signals.join(", ")}${source}` : `Happy Browser: filtered out${source}`;
   }
 
   function clearRaFilterMarks() {
@@ -2406,6 +2534,7 @@
       delete element.dataset.happyRaFilter;
       delete element.dataset.happyRaToday;
       delete element.dataset.happyRaSignals;
+      delete element.dataset.happyRaSource;
       element.removeAttribute("title");
     });
   }
@@ -2428,6 +2557,7 @@
     state.rail.dataset.raFilterToday = String(status && status.today || 0);
     state.rail.dataset.raFilterHidden = String(status && status.hidden || 0);
     state.rail.dataset.raFilterUnknown = String(status && status.unknown || 0);
+    state.rail.dataset.raFilterSources = status && status.sources ? formatRaSourceCounts(status.sources) : "";
 
     if (button) {
       const label = formatRaFilterButtonLabel(status);
@@ -2545,7 +2675,15 @@
       return `${status.scanned || 0}/${status.total || 0} scanned`;
     }
 
-    return `${status.matched || 0}/${status.today || 0} today matched; ${status.hidden || 0} hidden; ${status.unknown || 0} unknown`;
+    const sources = status.sources ? `; ${formatRaSourceCounts(status.sources)}` : "";
+    return `${status.matched || 0}/${status.today || 0} today matched; ${status.hidden || 0} hidden; ${status.unknown || 0} unknown${sources}`;
+  }
+
+  function formatRaSourceCounts(sources) {
+    return ["direct", "background", "frame", "fixture", "date-skip", "blocked", "unknown"]
+      .filter((key) => sources[key])
+      .map((key) => `${key} ${sources[key]}`)
+      .join("; ");
   }
 
   function getCompactText(element) {

@@ -15,7 +15,9 @@ Happy Browser is currently intended to ship first as:
 - No account system
 - Local page analysis only
 
-The Safari extension reads page structure locally to find visible previous, next, and load-more controls. It should not transmit browsing history, URLs, page content, form values, clicks, or navigation analysis to a remote server.
+The Safari extension reads page structure locally to find visible previous, next, and load-more controls. It should not transmit browsing history, URLs, page content, form values, clicks, or navigation analysis to a server operated by Happy Browser.
+
+Optional features may request public HTTPS pages when you are on supported sites (Wikipedia link preview on `*.wikipedia.org`; RA Berlin filter on `ra.co/events/de/berlin` when enabled). See `PRIVACY.md` for the narrow scope. These are not analytics calls and do not involve a Happy Browser backend.
 
 ## TestFlight
 
@@ -30,7 +32,9 @@ Use `docs/testflight.md` for the TestFlight upload flow.
 
 ## Export Compliance
 
-Current code does not implement custom cryptography and does not call external services from the containing app or extension logic.
+Current code does not implement custom cryptography. The containing app does not declare outgoing network sandbox access.
+
+The extension may request public HTTPS pages for optional, site-scoped features (Wikipedia preview; RA Berlin filter). It does not call a Happy Browser-operated API, analytics endpoint, or account service. Revisit export compliance and privacy answers if that changes.
 
 The Xcode project sets:
 

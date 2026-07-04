@@ -8,8 +8,14 @@
 > extension: failed-click exclusion memory is suppression-not-deletion (Tenet V),
 > the RA filter's "unknown" card state is a null-manifold entry rather than a
 > silent rejection (Tenet VII), and the RA per-request check vs. re-run sweep is
-> a live instance of the dual-clock seam (Tenet VI). Do not resolve the open
-> items below inside feature work; surface them.
+> a live instance of the dual-clock seam (Tenet VI) — **implementation uses a
+> live baseline during the sweep** (progress chip and card marks update as each
+> detail fetch completes; scheduled re-runs pick up new signatures and unknown
+> cards). That choice is documented here; it does **not** resolve open item 1.
+> Section XV PCA v5 cross-check: no PCA v5 artifact lives in this repo; the
+> nearest related instrument is the Receipt Discriminator in
+> `happy-labs/APPENDIX_A_RESEARCH_PROGRAM_REDUCTION.md` (still N=1 calibration).
+> Do not resolve the open items below inside feature work; surface them.
 
 Supersedes all prior versions. Self-contained — assume no access to the conversations that produced this.
 

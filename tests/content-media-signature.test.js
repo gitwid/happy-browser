@@ -308,10 +308,13 @@ async function main() {
 
     assert.equal(status.matched, 1);
     assert.equal(status.today, 2);
+    assert.equal(status.sources.direct, 2);
+    assert.equal(status.sources["date-skip"], 1);
     assert.equal(rail.dataset.raFilterPhase, "done");
     assert.equal(rail.querySelector(".happy-browser-ra-progress").textContent, "done 1/2");
     assert.equal(dom.window.document.documentElement.dataset.happyRaMode, "ghost");
     assert.equal(dom.window.document.querySelector("#match").dataset.happyRaFilter, "match");
+    assert.equal(dom.window.document.querySelector("#match").dataset.happyRaSource, "direct");
     assert.equal(dom.window.document.querySelector("#miss").dataset.happyRaFilter, "miss");
     assert.equal(dom.window.document.querySelector("#tomorrow").dataset.happyRaFilter, "miss");
     assert.equal(fetchCount, 2);
@@ -529,9 +532,120 @@ async function main() {
     const card = dom.window.document.querySelector("#background-detail");
     assert.equal(status.matched, 1);
     assert.equal(status.unknown, 0);
+    assert.equal(status.sources.background, 1);
     assert.equal(card.dataset.happyRaFilter, "match");
+    assert.equal(card.dataset.happyRaSource, "background");
     assert.equal(directFetchCount, 1);
     assert.equal(backgroundFetchCount, 1);
+    dom.window.close();
+  });
+
+  await run("uses extension background fetch when direct RA detail is an app shell", async () => {
+    let directFetchCount = 0;
+    let backgroundFetchCount = 0;
+    const { dom } = makeContentDocument({
+      url: "https://ra.co/events/de/berlin",
+      html: `
+        <!doctype html>
+        <main>
+          <div data-testid="event-upcoming-card" id="shell-then-background-detail" data-width="260" data-height="420" data-top="80">
+            <div>SAT, 4 JUL</div>
+            <h3 data-pw-test-id="event-title"><a data-pw-test-id="event-title-link" href="/events/809">Shell Then Background</a></h3>
+          </div>
+        </main>
+      `,
+      fetch() {
+        directFetchCount += 1;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(`
+            <!doctype html>
+            <html>
+              <head><title>RA shell</title></head>
+              <body>
+                <main>
+                  <h1>Shell Then Background</h1>
+                  <p>Generic app shell without event-specific metadata.</p>
+                </main>
+              </body>
+            </html>
+          `)
+        });
+      },
+      runtimeSendMessage(message, callback) {
+        backgroundFetchCount += 1;
+        assert.equal(message.type, "happy-browser-fetch-ra-detail");
+        assert.equal(message.href, "https://ra.co/events/809");
+        callback({
+          ok: true,
+          status: 200,
+          text: raDetail({
+            title: "Shell Then Background",
+            startDate: "2026-07-04T22:00:00.000",
+            description: "Queer sex positive event with an awareness team."
+          })
+        });
+      }
+    });
+
+    const status = await dom.window.__HappyBrowserTestHooks.runRaLgbtqFilter({ today: "2026-07-04", force: true });
+    const card = dom.window.document.querySelector("#shell-then-background-detail");
+    assert.equal(status.matched, 1);
+    assert.equal(status.unknown, 0);
+    assert.equal(status.sources.background, 1);
+    assert.equal(card.dataset.happyRaFilter, "match");
+    assert.equal(card.dataset.happyRaSource, "background");
+    assert.equal(directFetchCount, 1);
+    assert.equal(backgroundFetchCount, 1);
+    dom.window.close();
+  });
+
+  await run("does not fallback when direct RA detail is an anti-bot challenge", async () => {
+    let directFetchCount = 0;
+    let backgroundFetchCount = 0;
+    const { dom } = makeContentDocument({
+      url: "https://ra.co/events/de/berlin",
+      html: `
+        <!doctype html>
+        <main>
+          <div data-testid="event-upcoming-card" id="challenge-detail" data-width="260" data-height="420" data-top="80">
+            <div>SAT, 4 JUL</div>
+            <h3 data-pw-test-id="event-title"><a data-pw-test-id="event-title-link" href="/events/810">Challenge Detail</a></h3>
+          </div>
+        </main>
+      `,
+      fetch() {
+        directFetchCount += 1;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(`
+            <!doctype html>
+            <html>
+              <head><title>ra.co</title></head>
+              <body>
+                <iframe src="https://geo.captcha-delivery.com/interstitial/"></iframe>
+                <p>Please verify that you are human.</p>
+              </body>
+            </html>
+          `)
+        });
+      },
+      runtimeSendMessage() {
+        backgroundFetchCount += 1;
+      }
+    });
+
+    const status = await dom.window.__HappyBrowserTestHooks.runRaLgbtqFilter({ today: "2026-07-04", force: true });
+    const card = dom.window.document.querySelector("#challenge-detail");
+    assert.equal(status.matched, 0);
+    assert.equal(status.unknown, 1);
+    assert.equal(status.sources.blocked, 1);
+    assert.equal(card.dataset.happyRaFilter, "unknown");
+    assert.equal(card.dataset.happyRaSource, "blocked");
+    assert.equal(directFetchCount, 1);
+    assert.equal(backgroundFetchCount, 0);
     dom.window.close();
   });
 
@@ -620,7 +734,9 @@ async function main() {
     const card = dom.window.document.querySelector("#next-data-detail");
     assert.equal(status.matched, 1);
     assert.equal(status.unknown, 0);
+    assert.equal(status.sources.direct, 1);
     assert.equal(card.dataset.happyRaFilter, "match");
+    assert.equal(card.dataset.happyRaSource, "direct");
     dom.window.close();
   });
 
