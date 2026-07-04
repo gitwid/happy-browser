@@ -16,7 +16,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "567F02EE2FC169B300EB2BCD"
-               BuildableName = "Happy Browser.app"
+               BuildableName = "HappyBrowserDev.app"
                BlueprintName = "Happy Browser"
                ReferencedContainer = "container:Happy Browser.xcodeproj">
             </BuildableReference>
@@ -59,7 +59,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "567F02EE2FC169B300EB2BCD"
-            BuildableName = "Happy Browser.app"
+            BuildableName = "HappyBrowserDev.app"
             BlueprintName = "Happy Browser"
             ReferencedContainer = "container:Happy Browser.xcodeproj">
          </BuildableReference>
