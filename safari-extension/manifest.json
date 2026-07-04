@@ -66,5 +66,8 @@
         "*://*.wikipedia.org/*"
       ]
     }
-  ]
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  }
 }

@@ -36,6 +36,11 @@ for (const target of targets) {
   targetManifest.version = sourceManifest.version;
   targetManifest.description = sourceManifest.description;
   targetManifest.content_scripts = sourceManifest.content_scripts;
+  if (sourceManifest.background) {
+    targetManifest.background = sourceManifest.background;
+  } else {
+    delete targetManifest.background;
+  }
   if (sourceManifest.web_accessible_resources) {
     targetManifest.web_accessible_resources = sourceManifest.web_accessible_resources;
   } else {

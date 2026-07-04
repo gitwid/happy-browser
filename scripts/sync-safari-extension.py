@@ -49,6 +49,10 @@ def sync_target(target):
     target_manifest["version"] = SOURCE_MANIFEST["version"]
     target_manifest["description"] = SOURCE_MANIFEST["description"]
     target_manifest["content_scripts"] = SOURCE_MANIFEST["content_scripts"]
+    if "background" in SOURCE_MANIFEST:
+        target_manifest["background"] = SOURCE_MANIFEST["background"]
+    else:
+        target_manifest.pop("background", None)
     if "web_accessible_resources" in SOURCE_MANIFEST:
         target_manifest["web_accessible_resources"] = SOURCE_MANIFEST["web_accessible_resources"]
     else:

@@ -26,6 +26,9 @@
       ]
     }
   ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
   "content_scripts": [
     {
       "matches": [

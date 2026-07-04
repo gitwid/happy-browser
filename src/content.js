@@ -1816,10 +1816,10 @@
         } else {
           const detail = detailsByHref && detailsByHref[card.href] ? detailsByHref[card.href] : await getRaEventDetail(card.href);
           const text = [
-            card.text,
+            card.title,
             detail.title,
             detail.description,
-            detail.text
+            detail.signalText
           ].join("\n");
           const todayMatch = isRaEventToday(detail, card, today);
           const signals = getRaLgbtqSignals(text);
@@ -1964,11 +1964,7 @@
       return state.raFilter.detailCache.get(href);
     }
 
-    const response = await fetch(href, { credentials: "include" });
-    if (!response.ok) {
-      throw new Error(`RA detail ${response.status}`);
-    }
-    const html = await response.text();
+    const html = await fetchRaEventDetailHtml(href);
     const detail = parseRaEventDetailHtml(html, href);
     if (detail.hasEventData) {
       state.raFilter.detailCache.set(href, detail);
@@ -1983,6 +1979,62 @@
     const frameDetail = await getRaEventDetailFromFrame(href);
     state.raFilter.detailCache.set(href, frameDetail);
     return frameDetail;
+  }
+
+  async function fetchRaEventDetailHtml(href) {
+    let directError = null;
+    try {
+      const response = await fetch(href, { credentials: "include" });
+      if (!response.ok) {
+        throw new Error(`RA detail ${response.status}`);
+      }
+      return await response.text();
+    } catch (error) {
+      directError = error;
+    }
+
+    try {
+      return await fetchRaEventDetailViaBackground(href);
+    } catch (_backgroundError) {
+      throw directError || _backgroundError;
+    }
+  }
+
+  function fetchRaEventDetailViaBackground(href) {
+    if (!/^https:\/\/ra\.co\/events\/\d+\/?$/.test(String(href || ""))) {
+      return Promise.reject(new Error("Unsupported RA detail URL"));
+    }
+
+    if (typeof chrome === "undefined" || !chrome.runtime || typeof chrome.runtime.sendMessage !== "function") {
+      return Promise.reject(new Error("RA background fetch unavailable"));
+    }
+
+    return new Promise((resolve, reject) => {
+      const timeout = window.setTimeout(() => reject(new Error("RA background fetch timed out")), 10000);
+      try {
+        chrome.runtime.sendMessage({
+          type: "happy-browser-fetch-ra-detail",
+          href
+        }, (response) => {
+          window.clearTimeout(timeout);
+          const runtimeError = chrome.runtime.lastError;
+          if (runtimeError) {
+            reject(new Error(runtimeError.message || String(runtimeError)));
+            return;
+          }
+
+          if (!response || !response.ok) {
+            reject(new Error(response && response.error || `RA detail ${response && response.status || "unavailable"}`));
+            return;
+          }
+
+          resolve(String(response.text || ""));
+        });
+      } catch (error) {
+        window.clearTimeout(timeout);
+        reject(error);
+      }
+    });
   }
 
   function getRaEventDetailFromFrame(href) {
@@ -2047,19 +2099,150 @@
       .flatMap((script) => parseJsonLdEvents(script.textContent));
     const event = jsonEvents.find((item) => /event/i.test(String(item && item["@type"] || ""))) || {};
     const metaDescription = doc.querySelector("meta[name='description'], meta[property='og:description']");
+    const nextDataText = extractRaNextDataEventText(doc, href);
+    const trustedDomText = getRaTrustedEventDetailText(doc);
     const title = event.name || doc.querySelector("h1") && getCompactText(doc.querySelector("h1")) || doc.title || "";
     const description = event.description || metaDescription && metaDescription.getAttribute("content") || "";
-    const text = getCompactText(doc.body).slice(0, 5000);
-    const hasEventData = Boolean(event.startDate || event.description || /(^|\s)(venue|lineup|promoter|tickets|interested)(\s|$)/i.test(text));
+    const eventJsonText = getRaJsonEventText(event);
+    const signalText = [
+      eventJsonText,
+      description,
+      nextDataText,
+      trustedDomText
+    ].join("\n").slice(0, 9000);
+    const hasEventData = Boolean(event.startDate || event.name || event.description || nextDataText || trustedDomText);
 
     return {
       href,
       title,
       startDate: event.startDate || "",
       description,
-      text,
+      signalText,
       hasEventData
     };
+  }
+
+  function extractRaNextDataEventText(doc, href) {
+    const script = doc.querySelector("script#__NEXT_DATA__");
+    if (!script || !script.textContent) {
+      return "";
+    }
+
+    try {
+      const parsed = JSON.parse(script.textContent);
+      const eventId = getRaEventIdFromHref(href);
+      const eventObject = findRaEventObject(parsed, eventId);
+      return eventObject ? getRaJsonEventText(eventObject).slice(0, 7000) : "";
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function getRaEventIdFromHref(href) {
+    const match = String(href || "").match(/\/events\/(\d+)/);
+    return match ? match[1] : "";
+  }
+
+  function findRaEventObject(value, eventId, depth = 0, seen = new Set()) {
+    if (!value || typeof value !== "object" || depth > 12 || seen.has(value)) {
+      return null;
+    }
+    seen.add(value);
+
+    if (!Array.isArray(value) && isMatchingRaEventObject(value, eventId)) {
+      return value;
+    }
+
+    const children = Array.isArray(value) ? value : Object.values(value);
+    for (const child of children) {
+      const match = findRaEventObject(child, eventId, depth + 1, seen);
+      if (match) {
+        return match;
+      }
+    }
+
+    return null;
+  }
+
+  function isMatchingRaEventObject(value, eventId) {
+    if (!eventId) {
+      return false;
+    }
+
+    const ids = [
+      value.id,
+      value.eventId,
+      value.event_id,
+      value.contentId
+    ].map((item) => String(item || ""));
+    const urls = [
+      value.url,
+      value.href,
+      value.path,
+      value.slug
+    ].map((item) => String(item || ""));
+
+    return ids.includes(eventId) || urls.some((url) => url.includes(`/events/${eventId}`));
+  }
+
+  function getRaJsonEventText(value, depth = 0, seen = new Set()) {
+    if (!value || depth > 6 || seen.has(value)) {
+      return "";
+    }
+
+    if (typeof value === "string") {
+      return value;
+    }
+
+    if (typeof value !== "object") {
+      return "";
+    }
+
+    seen.add(value);
+    const parts = [];
+    const preferredKeys = new Set([
+      "name",
+      "title",
+      "description",
+      "summary",
+      "content",
+      "lineup",
+      "venue",
+      "location",
+      "promoter",
+      "organizer",
+      "performer",
+      "artists",
+      "tags"
+    ]);
+
+    Object.entries(value).forEach(([key, child]) => {
+      if (preferredKeys.has(key) || (child && typeof child === "object")) {
+        parts.push(getRaJsonEventText(child, depth + 1, seen));
+      }
+    });
+
+    return parts.filter(Boolean).join("\n");
+  }
+
+  function getRaTrustedEventDetailText(doc) {
+    const selectors = [
+      "[data-testid='event-description']",
+      "[data-testid='event-details']",
+      "[data-pw-test-id='event-description']",
+      "[data-pw-test-id='event-details']",
+      "[class*='EventDescription']",
+      "[class*='eventDescription']",
+      "[class*='EventDetails']",
+      "[class*='eventDetails']"
+    ];
+
+    return selectors
+      .flatMap((selector) => Array.from(doc.querySelectorAll(selector)))
+      .map((element) => getCompactText(element))
+      .filter(Boolean)
+      .join("\n")
+      .slice(0, 7000);
   }
 
   function parseJsonLdEvents(text) {

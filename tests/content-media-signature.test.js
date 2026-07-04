@@ -40,7 +40,8 @@ function makeContentDocument(options = {}) {
     runtime: {
       getManifest() {
         return { version: "test" };
-      }
+      },
+      sendMessage: options.runtimeSendMessage
     },
     storage: {
       sync: {
@@ -487,6 +488,139 @@ async function main() {
     assert.equal(status.unknown, 1);
     assert.equal(status.hidden, 0);
     assert.equal(card.dataset.happyRaFilter, "unknown");
+    dom.window.close();
+  });
+
+  await run("uses extension background fetch when RA detail fetch is blocked", async () => {
+    let directFetchCount = 0;
+    let backgroundFetchCount = 0;
+    const { dom } = makeContentDocument({
+      url: "https://ra.co/events/de/berlin",
+      html: `
+        <!doctype html>
+        <main>
+          <div data-testid="event-upcoming-card" id="background-detail" data-width="260" data-height="420" data-top="80">
+            <div>SAT, 4 JUL</div>
+            <h3 data-pw-test-id="event-title"><a data-pw-test-id="event-title-link" href="/events/808">Background Detail</a></h3>
+          </div>
+        </main>
+      `,
+      fetch() {
+        directFetchCount += 1;
+        return Promise.reject(new TypeError("Load failed"));
+      },
+      runtimeSendMessage(message, callback) {
+        backgroundFetchCount += 1;
+        assert.equal(message.type, "happy-browser-fetch-ra-detail");
+        assert.equal(message.href, "https://ra.co/events/808");
+        callback({
+          ok: true,
+          status: 200,
+          text: raDetail({
+            title: "Background Detail",
+            startDate: "2026-07-04T21:00:00.000",
+            description: "Sex positive party with an awareness team."
+          })
+        });
+      }
+    });
+
+    const status = await dom.window.__HappyBrowserTestHooks.runRaLgbtqFilter({ today: "2026-07-04", force: true });
+    const card = dom.window.document.querySelector("#background-detail");
+    assert.equal(status.matched, 1);
+    assert.equal(status.unknown, 0);
+    assert.equal(card.dataset.happyRaFilter, "match");
+    assert.equal(directFetchCount, 1);
+    assert.equal(backgroundFetchCount, 1);
+    dom.window.close();
+  });
+
+  await run("does not match RA app shell text as event-specific signals", async () => {
+    const { dom } = makeContentDocument({
+      url: "https://ra.co/events/de/berlin",
+      html: `
+        <!doctype html>
+        <main>
+          <div data-testid="event-upcoming-card" id="shell-detail" data-width="260" data-height="420" data-top="80">
+            <div>SAT, 4 JUL</div>
+            <h3 data-pw-test-id="event-title"><a data-pw-test-id="event-title-link" href="/events/919">Regular Event</a></h3>
+          </div>
+        </main>
+      `,
+      fetch() {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(`
+            <!doctype html>
+            <html>
+              <head><title>Regular Event</title></head>
+              <body>
+                <main>
+                  <h1>Regular Event</h1>
+                  <p>Generic RA shell text mentions queer editorial coverage and an awareness team elsewhere.</p>
+                </main>
+              </body>
+            </html>
+          `)
+        });
+      }
+    });
+
+    const status = await dom.window.__HappyBrowserTestHooks.runRaLgbtqFilter({ today: "2026-07-04", force: true });
+    const card = dom.window.document.querySelector("#shell-detail");
+    assert.equal(status.matched, 0);
+    assert.equal(status.unknown, 1);
+    assert.equal(card.dataset.happyRaFilter, "unknown");
+    dom.window.close();
+  });
+
+  await run("matches RA event-specific Next data by event id", async () => {
+    const { dom } = makeContentDocument({
+      url: "https://ra.co/events/de/berlin",
+      html: `
+        <!doctype html>
+        <main>
+          <div data-testid="event-upcoming-card" id="next-data-detail" data-width="260" data-height="420" data-top="80">
+            <div>SAT, 4 JUL</div>
+            <h3 data-pw-test-id="event-title"><a data-pw-test-id="event-title-link" href="/events/920">Structured Event</a></h3>
+          </div>
+        </main>
+      `,
+      fetch() {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(`
+            <!doctype html>
+            <html>
+              <head>
+                <title>Structured Event</title>
+                <script id="__NEXT_DATA__" type="application/json">${JSON.stringify({
+                  props: {
+                    pageProps: {
+                      event: {
+                        id: 920,
+                        title: "Structured Event",
+                        description: "Queer collective with an awareness team.",
+                        artists: [{ name: "Resident" }]
+                      }
+                    }
+                  }
+                })}</script>
+              </head>
+              <body><main><h1>Structured Event</h1></main></body>
+            </html>
+          `)
+        });
+      }
+    });
+
+    const status = await dom.window.__HappyBrowserTestHooks.runRaLgbtqFilter({ today: "2026-07-04", force: true });
+    const card = dom.window.document.querySelector("#next-data-detail");
+    assert.equal(status.matched, 1);
+    assert.equal(status.unknown, 0);
+    assert.equal(card.dataset.happyRaFilter, "match");
     dom.window.close();
   });
 
