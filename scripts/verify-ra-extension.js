@@ -100,6 +100,9 @@ async function main() {
       value.targets = await listTargetSummary(port);
       console.log(JSON.stringify(value, null, 2));
 
+      if (value.antiBotBlocked) {
+        throw new Error("RA blocked the automated verification profile with an anti-bot challenge.");
+      }
       if (!value || !value.hasHappy || !value.hasHost) {
         throw new Error("Happy Browser content script did not load on RA, even after verifier injection.");
       }
@@ -208,12 +211,23 @@ function pollRaFilter() {
         visibleUnknown: unknown.filter((card) => card.display !== "none").length,
         samples: matches.slice(0, 12),
         unknownSamples: unknown.slice(0, 12),
-        visibleUnmarked: cards.filter((card) => !card.mark && card.display !== "none").slice(0, 12)
+        visibleUnmarked: cards.filter((card) => !card.mark && card.display !== "none").slice(0, 12),
+        antiBotBlocked: Boolean(
+          document.querySelector("iframe[src*='captcha-delivery.com'], iframe[src*='datadome']") ||
+          /captcha|verify you are human|datadome/i.test(document.title || "") ||
+          /captcha|verify you are human|datadome/i.test((document.body && document.body.innerText || "").slice(0, 2000))
+        )
       };
     };
 
     const timer = setInterval(() => {
       const state = readState();
+      if (state.antiBotBlocked) {
+        clearInterval(timer);
+        resolve(state);
+        return;
+      }
+
       const done = state.hasHappy &&
         state.hasHost &&
         state.railState &&
@@ -310,46 +324,65 @@ async function listTargetSummary(port) {
 async function injectHappyBrowser(client) {
   const navigationScoring = fs.readFileSync(path.join(EXTENSION_PATH, "src", "navigation-scoring.js"), "utf8");
   const contentScript = fs.readFileSync(path.join(EXTENSION_PATH, "src", "content.js"), "utf8");
-  await client.send("Runtime.evaluate", {
+  await evaluateOrThrow(client, {
     expression: `
-      Object.defineProperty(window, "chrome", {
-        configurable: true,
-        value: {
-          runtime: {
-            getManifest() {
-              return { version: "verify" };
-            }
-          },
-          storage: {
-            sync: {
-              get(defaults, callback) { callback(defaults || {}); },
-              set() {}
-            },
-            local: {
-              get(defaults, callback) { callback(defaults || {}); },
-              set(_values, callback) { if (callback) callback(); }
-            },
-            onChanged: {
-              addListener() {}
-            }
-          }
+      window.chrome = window.chrome || {};
+      window.chrome.runtime = window.chrome.runtime || {};
+      window.chrome.runtime.getManifest = function getManifest() {
+        return { version: "verify" };
+      };
+      window.chrome.runtime.sendMessage = function sendMessage(message, callback) {
+        if (!message || message.type !== "happy-browser-fetch-ra-detail") {
+          if (callback) callback({ ok: false, error: "Unsupported verifier message" });
+          return;
         }
-      });
+        fetch(message.href, { credentials: "include" })
+          .then(async (response) => {
+            const text = await response.text();
+            if (callback) callback({ ok: response.ok, status: response.status, text: response.ok ? text : "" });
+          })
+          .catch((error) => {
+            if (callback) callback({ ok: false, error: error && error.message ? error.message : String(error) });
+          });
+      };
+      window.chrome.storage = {
+        sync: {
+          get(defaults, callback) { callback(defaults || {}); },
+          set() {}
+        },
+        local: {
+          get(defaults, callback) { callback(defaults || {}); },
+          set(_values, callback) { if (callback) callback(); }
+        },
+        onChanged: {
+          addListener() {}
+        }
+      };
       true;
     `,
     awaitPromise: true,
     returnByValue: true
   });
-  await client.send("Runtime.evaluate", {
+  await evaluateOrThrow(client, {
     expression: `eval(${JSON.stringify(`${navigationScoring}\n//# sourceURL=happy-browser-navigation-scoring.js`)})`,
     awaitPromise: true,
     returnByValue: true
   });
-  await client.send("Runtime.evaluate", {
+  await evaluateOrThrow(client, {
     expression: `eval(${JSON.stringify(`${contentScript}\n//# sourceURL=happy-browser-content.js`)})`,
     awaitPromise: true,
     returnByValue: true
   });
+}
+
+async function evaluateOrThrow(client, params) {
+  const result = await client.send("Runtime.evaluate", params);
+  if (result.exceptionDetails) {
+    const details = result.exceptionDetails;
+    const text = details.exception && details.exception.description || details.text || "Runtime evaluation failed";
+    throw new Error(text);
+  }
+  return result;
 }
 
 function connectCdp(url) {
