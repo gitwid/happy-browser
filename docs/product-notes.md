@@ -20,3 +20,4 @@ Representative scenarios to keep covered:
 - Keep examples generic when adding new reproduction cases.
 - If a real site is needed for private debugging, keep the URL outside the repository.
 - Public fixtures should use `example.com`, `example.net`, `example.org`, or `.test` hostnames.
+- Known behavior to carve out: on social-media image carousel pages reached from another site, the browser back action can become ambiguous after scrolling. Once the page scrolls back to the original post, a left swipe may advance the carousel and also trigger browser history back to the previous external page. Treat carousel navigation and page-history navigation as separate gestures before adding platform-specific fixes.

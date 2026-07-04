@@ -14,6 +14,8 @@ Happy Browser does not send page content, browsing history, URLs, clicks, form v
 
 Happy Browser stores local extension preferences, such as whether the floating rail is enabled, whether debug logging is enabled, and whether Happy navigation is currently on.
 
+If you use the attention queue, Happy Browser stores queued-item metadata in local extension storage, such as the page URL, an available post permalink, a short visible text snippet, media identifiers, and the time you queued the item. This queue is used only to help you revisit items later.
+
 These settings are stored using the browser's extension storage APIs. Depending on your browser settings, the browser may sync extension preferences through your browser account.
 
 ## Data Sharing

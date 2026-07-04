@@ -27,8 +27,31 @@
     statusTimer: null,
     observerTimer: null,
     preNavigationSnapshot: null,
+    attentionQueue: [],
+    raFilter: {
+      enabled: false,
+      running: false,
+      timer: null,
+      lastSignature: "",
+      detailCache: new Map(),
+      status: null,
+      runId: 0,
+      userDisabled: false,
+      frameFallbacks: 0,
+      mode: "ghost"
+    },
     versionLabel: getExtensionVersionLabel()
   };
+  const ATTENTION_QUEUE_STORAGE_KEY = "happyAttentionQueue";
+  const RA_FILTER_PAGE_STYLE_ID = "happy-browser-ra-filter-style";
+  const RA_LGBTQ_PATTERNS = [
+    { label: "sex positive", pattern: /\bsex[\s-]*positive\b/i },
+    { label: "awareness team", pattern: /\bawareness\s+team\b/i },
+    { label: "queer", pattern: /\bqueer\b/i },
+    { label: "lgbtq", pattern: /\blgbtq?\+?\b/i },
+    { label: "flinta", pattern: /\bflinta\*?\b/i },
+    { label: "trans", pattern: /\btrans\b|\bnon[\s-]?binary\b/i }
+  ];
 
   const railCss = `
     #happy-browser-rail {
@@ -115,7 +138,7 @@
 
     .happy-browser-version {
       position: fixed;
-      top: calc(var(--happy-toggle-top, 16px) + 42px);
+      top: calc(var(--happy-toggle-top, 16px) + 86px);
       right: var(--happy-toggle-right, 16px);
       width: 58px;
       color: rgba(248, 251, 255, 0.64);
@@ -130,6 +153,164 @@
       user-select: none;
     }
 
+    .happy-browser-queue-button {
+      position: fixed;
+      top: calc(var(--happy-toggle-top, 16px) + 44px);
+      right: calc(var(--happy-toggle-right, 16px) + 10px);
+      width: 38px;
+      height: 38px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      background: rgba(18, 24, 28, 0.48);
+      color: #f8fbff;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 760;
+      line-height: 1;
+      opacity: 0.72;
+      pointer-events: auto;
+      transition: background 160ms ease, border-color 160ms ease, opacity 160ms ease, transform 160ms ease;
+      backdrop-filter: blur(16px);
+    }
+
+    .happy-browser-queue-button:hover,
+    .happy-browser-queue-button:focus-visible {
+      opacity: 0.94;
+      outline: none;
+    }
+
+    .happy-browser-ra-filter-button {
+      position: fixed;
+      top: calc(var(--happy-toggle-top, 16px) + 44px);
+      right: calc(var(--happy-toggle-right, 16px) + 54px);
+      width: 38px;
+      height: 38px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      background: rgba(18, 24, 28, 0.48);
+      color: #f8fbff;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      display: none;
+      font-size: 11px;
+      font-weight: 760;
+      letter-spacing: 0;
+      line-height: 1;
+      opacity: 0.72;
+      pointer-events: auto;
+      transition: background 160ms ease, border-color 160ms ease, opacity 160ms ease, transform 160ms ease;
+      backdrop-filter: blur(16px);
+    }
+
+    .happy-browser-ra-filter-button:hover,
+    .happy-browser-ra-filter-button:focus-visible {
+      opacity: 0.94;
+      outline: none;
+    }
+
+    .happy-browser-ra-mode,
+    .happy-browser-ra-progress {
+      position: fixed;
+      top: calc(var(--happy-toggle-top, 16px) + 88px);
+      right: calc(var(--happy-toggle-right, 16px) + 46px);
+      min-width: 58px;
+      padding: 4px 7px;
+      border: 1px dashed rgba(255, 255, 255, 0.32);
+      border-radius: 8px;
+      background: rgba(18, 24, 28, 0.5);
+      color: #f8fbff;
+      display: none;
+      font-size: 10px;
+      font-weight: 760;
+      letter-spacing: 0;
+      line-height: 1;
+      pointer-events: none;
+      text-align: center;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.62);
+      text-transform: uppercase;
+      backdrop-filter: blur(16px);
+    }
+
+    .happy-browser-ra-progress {
+      top: calc(var(--happy-toggle-top, 16px) + 112px);
+      min-width: 74px;
+      border-style: solid;
+      text-transform: none;
+    }
+
+    #happy-browser-rail[data-ra-page="true"] .happy-browser-ra-filter-button {
+      display: block;
+    }
+
+    #happy-browser-rail[data-ra-page="true"] .happy-browser-ra-mode,
+    #happy-browser-rail[data-ra-page="true"] .happy-browser-ra-progress {
+      display: block;
+    }
+
+    #happy-browser-rail[data-ra-filter-enabled="true"] .happy-browser-ra-filter-button {
+      background: rgba(20, 68, 54, 0.64);
+      border-color: rgba(112, 243, 178, 0.72);
+    }
+
+    #happy-browser-rail[data-ra-mode="ghost"] .happy-browser-ra-filter-button,
+    #happy-browser-rail[data-ra-mode="ghost"] .happy-browser-ra-mode {
+      border-style: dashed;
+      border-color: rgba(255, 202, 98, 0.78);
+    }
+
+    #happy-browser-rail[data-ra-mode="filtered"] .happy-browser-ra-filter-button,
+    #happy-browser-rail[data-ra-mode="filtered"] .happy-browser-ra-mode {
+      border-style: solid;
+      border-color: rgba(112, 243, 178, 0.78);
+    }
+
+    #happy-browser-rail[data-ra-mode="all"] .happy-browser-ra-filter-button,
+    #happy-browser-rail[data-ra-mode="all"] .happy-browser-ra-mode {
+      background: rgba(18, 24, 28, 0.34);
+      border-style: dotted;
+      border-color: rgba(255, 255, 255, 0.36);
+      opacity: 0.72;
+    }
+
+    #happy-browser-rail[data-ra-filter-running="true"] .happy-browser-ra-filter-button {
+      border-color: rgba(255, 202, 98, 0.74);
+    }
+
+    #happy-browser-rail[data-ra-filter-phase="running"] .happy-browser-ra-progress {
+      border-style: dashed;
+      border-color: rgba(255, 202, 98, 0.82);
+      background: rgba(56, 39, 14, 0.68);
+      animation: happy-ra-progress-pulse 1200ms ease-in-out infinite;
+    }
+
+    #happy-browser-rail[data-ra-filter-phase="done"] .happy-browser-ra-progress {
+      border-color: rgba(112, 243, 178, 0.78);
+      background: rgba(20, 68, 54, 0.62);
+    }
+
+    #happy-browser-rail[data-ra-filter-phase="error"] .happy-browser-ra-progress {
+      border-color: rgba(255, 132, 132, 0.82);
+      background: rgba(70, 24, 24, 0.68);
+    }
+
+    #happy-browser-rail[data-ra-filter-phase="all"] .happy-browser-ra-progress,
+    #happy-browser-rail[data-ra-filter-phase="ready"] .happy-browser-ra-progress {
+      border-color: rgba(255, 255, 255, 0.34);
+      background: rgba(18, 24, 28, 0.42);
+      opacity: 0.76;
+    }
+
+    @keyframes happy-ra-progress-pulse {
+      0%, 100% { opacity: 0.74; }
+      50% { opacity: 1; }
+    }
+
+    #happy-browser-rail[data-queued-current="true"] .happy-browser-queue-button {
+      background: rgba(20, 68, 54, 0.64);
+      border-color: rgba(112, 243, 178, 0.72);
+    }
+
     #happy-browser-rail[data-happy-enabled="true"] .happy-browser-toggle {
       background: rgba(20, 68, 54, 0.58);
       border-color: rgba(112, 243, 178, 0.62);
@@ -141,6 +322,10 @@
     }
 
     #happy-browser-rail[data-happy-enabled="false"] .happy-browser-button,
+    #happy-browser-rail[data-happy-enabled="false"] .happy-browser-queue-button,
+    #happy-browser-rail[data-happy-enabled="false"] .happy-browser-ra-filter-button,
+    #happy-browser-rail[data-happy-enabled="false"] .happy-browser-ra-mode,
+    #happy-browser-rail[data-happy-enabled="false"] .happy-browser-ra-progress,
     #happy-browser-rail[data-happy-enabled="false"] .happy-browser-status,
     #happy-browser-rail[data-happy-enabled="false"] .happy-browser-inspector {
       display: none;
@@ -290,11 +475,26 @@
     window.__HappyBrowserTestHooks = {
       capturePageSnapshot,
       didPageAdvance,
+      getAttentionQueueItem,
+      getFeedNavigationAction,
+      getFeedPosts,
+      getFocusedPost,
+      getAdjacentPost,
+      getRaEventCards,
+      getRaFilterStatus: () => state.raFilter.status,
+      getRaFilterMode: () => state.raFilter.enabled ? state.raFilter.mode : "all",
+      isRaBerlinEventsPage,
+      parseRaEventDetailHtml,
+      runRaLgbtqFilter,
+      toggleRaFilter,
+      queueFocusedPost,
+      getAttentionQueue: () => state.attentionQueue,
       getVisibleMediaSignature
     };
   }
 
   loadSettings();
+  loadAttentionQueue();
   createRail();
   setRailState("scanning", "Scanning");
   scheduleAnalyze(80);
@@ -313,6 +513,22 @@
       applyHappyEnabledState();
       applyDebugState();
       applyRailEnabledState();
+    });
+  }
+
+  function loadAttentionQueue() {
+    const localStorageArea = chrome.storage && chrome.storage.local;
+    if (!localStorageArea || typeof localStorageArea.get !== "function") {
+      state.attentionQueue = [];
+      applyQueueState();
+      return;
+    }
+
+    localStorageArea.get({ [ATTENTION_QUEUE_STORAGE_KEY]: [] }, (settings) => {
+      const queue = settings && Array.isArray(settings[ATTENTION_QUEUE_STORAGE_KEY]) ? settings[ATTENTION_QUEUE_STORAGE_KEY] : [];
+      state.attentionQueue = queue.filter((item) => item && item.key).slice(0, 100);
+      applyQueueState();
+      updateInspector();
     });
   }
 
@@ -351,6 +567,15 @@
     const previous = makeRailButton("previous", "‹", "Happy previous");
     const next = makeRailButton("next", "›", "Happy next");
     const toggle = makeToggleButton();
+    const queue = makeQueueButton();
+    const raFilter = makeRaFilterButton();
+    const raMode = document.createElement("div");
+    raMode.className = "happy-browser-ra-mode";
+    raMode.textContent = "ghost";
+    raMode.setAttribute("aria-hidden", "true");
+    const raProgress = document.createElement("div");
+    raProgress.className = "happy-browser-ra-progress";
+    raProgress.textContent = "ready";
     const version = document.createElement("div");
     version.className = "happy-browser-version";
     version.textContent = state.versionLabel;
@@ -363,7 +588,7 @@
     inspector.setAttribute("aria-label", "Happy Browser local inspection");
     inspector.innerHTML = "<h2>Local inspection</h2><dl><dt>State</dt><dd>Scanning</dd></dl>";
 
-    rail.append(previous, next, toggle, version, status, inspector);
+    rail.append(previous, next, toggle, queue, raFilter, raMode, raProgress, version, status, inspector);
     shadow.append(style, rail);
     document.documentElement.appendChild(host);
     state.railHost = host;
@@ -373,6 +598,8 @@
     applyHappyEnabledState();
     applyDebugState();
     applyRailEnabledState();
+    applyQueueState();
+    updateRaFilterUi();
   }
 
   function makeToggleButton() {
@@ -390,6 +617,36 @@
         return;
       }
       toggleHappyEnabled();
+    });
+    return button;
+  }
+
+  function makeQueueButton() {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "happy-browser-queue-button";
+    button.textContent = "Q";
+    button.setAttribute("aria-label", "Queue current item for attention");
+    button.setAttribute("title", "Queue current item for attention");
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      queueFocusedPost();
+    });
+    return button;
+  }
+
+  function makeRaFilterButton() {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "happy-browser-ra-filter-button";
+    button.textContent = "RA";
+    button.setAttribute("aria-label", "RA filter ghost mode");
+    button.setAttribute("title", "RA filter ghost mode");
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleRaFilter();
     });
     return button;
   }
@@ -773,6 +1030,8 @@
     const visualState = getVisualState();
     const label = getVisualStateLabel(visualState);
     setRailState(visualState, label);
+    applyQueueState();
+    maybeRunRaFilter();
     updateInspector();
 
     if (state.debug) {
@@ -793,6 +1052,24 @@
 
     if (!state.analysis) {
       analyze();
+    }
+
+    const feedAction = getFeedNavigationAction(direction);
+    if (feedAction) {
+      state.preNavigationSnapshot = capturePageSnapshot();
+      if (feedAction.type === "carousel" && feedAction.candidate) {
+        announce(`Going ${direction}`);
+        performCandidate(feedAction.candidate, feedAction.post);
+        observeNavigationOutcome(direction, source, feedAction.candidate);
+        return;
+      }
+
+      if (feedAction.type === "post-scroll" && feedAction.post) {
+        announce(direction === "next" ? "Next item" : "Previous item");
+        scrollPostIntoFocus(feedAction.post);
+        observeNavigationOutcome(direction, source, { type: "scroll", source: "focused-post" });
+        return;
+      }
     }
 
     const result = state.analysis && state.analysis.directions[direction];
@@ -826,13 +1103,176 @@
     }
   }
 
-  function performCandidate(candidate) {
+  function getFeedNavigationAction(direction) {
+    const focusedPost = getFocusedPost();
+    if (!focusedPost || !scoring) {
+      return null;
+    }
+
+    const carouselCandidate = getScopedPostCarouselCandidate(focusedPost, direction);
+    if (carouselCandidate) {
+      return {
+        type: "carousel",
+        post: focusedPost,
+        candidate: carouselCandidate
+      };
+    }
+
+    const posts = getFeedPosts();
+    if (posts.length < 2) {
+      return null;
+    }
+
+    const adjacentPost = getAdjacentPost(focusedPost, direction, posts);
+    if (!adjacentPost) {
+      return null;
+    }
+
+    return {
+      type: "post-scroll",
+      post: adjacentPost
+    };
+  }
+
+  function getScopedPostCarouselCandidate(post, direction) {
+    const result = scoring.analyzeNavigation(post, {
+      location: window.location,
+      excludedSelectors: getExcludedSelectors()
+    });
+    const directionResult = result && result.directions && result.directions[direction];
+    const candidate = directionResult && directionResult.best;
+    if (!candidate || candidate.confidence === "none") {
+      return null;
+    }
+
+    const reasons = candidate.reason || [];
+    return reasons.includes("media-carousel-control") ? candidate : null;
+  }
+
+  function getFeedPosts() {
+    const articlePosts = Array.from(document.querySelectorAll("article, [role='article']"))
+      .filter(isPostLikeElement);
+
+    if (articlePosts.length) {
+      return sortAndDedupePosts(articlePosts);
+    }
+
+    const main = document.querySelector("main, [role='main']");
+    const candidates = main ? Array.from(main.querySelectorAll(":scope > article, :scope > section, :scope > div")) : [];
+    return sortAndDedupePosts(candidates.filter(isPostLikeElement));
+  }
+
+  function sortAndDedupePosts(posts) {
+    const deduped = [];
+    posts.forEach((post) => {
+      if (deduped.some((existing) => existing === post || existing.contains(post))) {
+        return;
+      }
+
+      const containedIndex = deduped.findIndex((existing) => post.contains(existing));
+      if (containedIndex >= 0) {
+        deduped.splice(containedIndex, 1, post);
+        return;
+      }
+
+      deduped.push(post);
+    });
+
+    return deduped.sort((a, b) => getElementCenterY(a) - getElementCenterY(b));
+  }
+
+  function isPostLikeElement(element) {
+    if (!element || element === state.railHost || state.railHost && state.railHost.contains(element)) {
+      return false;
+    }
+
+    const rect = element.getBoundingClientRect();
+    if (!rect || rect.width < 220 || rect.height < 220 || rect.width * rect.height < 50000) {
+      return false;
+    }
+
+    return hasLargeMedia(element) || hasMediaCarouselControls(element);
+  }
+
+  function hasLargeMedia(element) {
+    return Array.from(element.querySelectorAll("img, video, picture, canvas, [role='img']"))
+      .slice(0, 32)
+      .some((media) => {
+        const rect = media.getBoundingClientRect();
+        return rect && rect.width >= 180 && rect.height >= 180 && rect.width * rect.height >= 50000;
+      });
+  }
+
+  function hasMediaCarouselControls(element) {
+    return Array.from(element.querySelectorAll("button[aria-label], [role='button'][aria-label]"))
+      .some((control) => /(^|[^a-z0-9])(next|previous|prev|go back|arrow-right|arrow-left|chevron-right|chevron-left)([^a-z0-9]|$)/i.test(control.getAttribute("aria-label") || ""));
+  }
+
+  function getFocusedPost() {
+    const posts = getFeedPosts();
+    if (!posts.length) {
+      return null;
+    }
+
+    const viewportCenter = window.innerHeight / 2;
+    const visiblePosts = posts
+      .map((post) => ({
+        post,
+        distance: Math.abs(getElementCenterY(post) - viewportCenter),
+        visibleArea: getVisibleArea(post)
+      }))
+      .filter((item) => item.visibleArea >= 12000);
+
+    const pool = visiblePosts.length ? visiblePosts : posts.map((post) => ({
+      post,
+      distance: Math.abs(getElementCenterY(post) - viewportCenter),
+      visibleArea: 0
+    }));
+
+    pool.sort((a, b) => a.distance - b.distance || b.visibleArea - a.visibleArea);
+    return pool[0].post;
+  }
+
+  function getAdjacentPost(focusedPost, direction, posts = getFeedPosts()) {
+    const index = posts.indexOf(focusedPost);
+    if (index < 0) {
+      return null;
+    }
+
+    return direction === "next" ? posts[index + 1] || null : posts[index - 1] || null;
+  }
+
+  function scrollPostIntoFocus(post) {
+    if (!post || typeof post.scrollIntoView !== "function") {
+      return;
+    }
+
+    post.scrollIntoView({
+      block: "center",
+      inline: "nearest",
+      behavior: "smooth"
+    });
+  }
+
+  function getElementCenterY(element) {
+    const rect = element.getBoundingClientRect();
+    return rect.top + rect.height / 2;
+  }
+
+  function getVisibleArea(element) {
+    const rect = element.getBoundingClientRect();
+    const width = Math.max(0, Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0));
+    const height = Math.max(0, Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0));
+    return width * height;
+  }
+
+  function performCandidate(candidate, scope) {
     if (candidate.type === "url" && candidate.href) {
       window.location.href = candidate.href;
       return;
     }
 
-    const element = candidate.selector ? document.querySelector(candidate.selector) : null;
+    const element = candidate.selector ? queryCandidateElement(candidate.selector, scope) : null;
     if (element) {
       element.click();
       return;
@@ -841,6 +1281,21 @@
     if (candidate.href) {
       window.location.href = candidate.href;
     }
+  }
+
+  function queryCandidateElement(selector, scope) {
+    if (!selector) {
+      return null;
+    }
+
+    if (scope && scope.querySelector) {
+      const scoped = scope.querySelector(selector);
+      if (scoped) {
+        return scoped;
+      }
+    }
+
+    return document.querySelector(selector);
   }
 
   function observeNavigationOutcome(direction, source, candidate) {
@@ -924,6 +1379,128 @@
     });
 
     return pieces.join("|");
+  }
+
+  function queueFocusedPost() {
+    const item = getAttentionQueueItem(getFocusedPost());
+    if (!item) {
+      announce("Nothing to queue");
+      return Promise.resolve(null);
+    }
+
+    const nextQueue = [
+      item,
+      ...state.attentionQueue.filter((queued) => queued.key !== item.key)
+    ].slice(0, 100);
+    state.attentionQueue = nextQueue;
+    applyQueueState();
+    updateInspector();
+
+    return persistAttentionQueue().then(() => {
+      announce("Queued");
+      return item;
+    });
+  }
+
+  function persistAttentionQueue() {
+    const localStorageArea = chrome.storage && chrome.storage.local;
+    if (!localStorageArea || typeof localStorageArea.set !== "function") {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      localStorageArea.set({ [ATTENTION_QUEUE_STORAGE_KEY]: state.attentionQueue }, resolve);
+    });
+  }
+
+  function getAttentionQueueItem(post) {
+    if (!post) {
+      return null;
+    }
+
+    const url = getPostUrl(post);
+    const snippet = getPostSnippet(post);
+    const mediaSignature = getPostMediaSignature(post);
+    const key = url || `${window.location.href}#${mediaSignature || snippet}`;
+    if (!key) {
+      return null;
+    }
+
+    return {
+      key,
+      url,
+      sourceUrl: window.location.href,
+      title: getPostTitle(post),
+      snippet,
+      mediaSignature,
+      queuedAt: new Date().toISOString()
+    };
+  }
+
+  function getPostUrl(post) {
+    const postLink = Array.from(post.querySelectorAll("a[href]"))
+      .map((link) => link.getAttribute("href"))
+      .find((href) => href && /\/p\/[^/]+\/?/.test(href));
+    if (postLink) {
+      try {
+        return new URL(postLink, window.location.href).href.split("?")[0];
+      } catch (_error) {
+        return postLink;
+      }
+    }
+
+    if (/\/p\/[^/]+\/?/.test(window.location.pathname)) {
+      return window.location.href.split("?")[0];
+    }
+
+    return "";
+  }
+
+  function getPostTitle(post) {
+    const profileLink = Array.from(post.querySelectorAll("a[href]"))
+      .map((link) => String(link.innerText || link.textContent || "").trim())
+      .find((text) => text && text.length <= 80);
+    return profileLink || document.title || "Queued item";
+  }
+
+  function getPostSnippet(post) {
+    return String(post.innerText || post.textContent || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 220);
+  }
+
+  function getPostMediaSignature(post) {
+    return Array.from(post.querySelectorAll("img, video"))
+      .slice(0, 4)
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return [
+          element.currentSrc || element.src || element.poster || "",
+          element.getAttribute("alt") || "",
+          Math.round(rect.width),
+          Math.round(rect.height)
+        ].join(":").slice(0, 180);
+      })
+      .join("|");
+  }
+
+  function applyQueueState() {
+    if (!state.rail) {
+      return;
+    }
+
+    const current = getAttentionQueueItem(getFocusedPost());
+    const queuedCurrent = Boolean(current && state.attentionQueue.some((item) => item.key === current.key));
+    const button = state.rail.querySelector(".happy-browser-queue-button");
+    state.rail.dataset.queuedCurrent = String(queuedCurrent);
+    state.rail.dataset.queueCount = String(state.attentionQueue.length);
+
+    if (button) {
+      const label = queuedCurrent ? `Queued for attention (${state.attentionQueue.length})` : `Queue current item for attention (${state.attentionQueue.length})`;
+      button.setAttribute("aria-label", label);
+      button.setAttribute("title", label);
+    }
   }
 
   function rememberFailedCandidate(candidate) {
@@ -1050,6 +1627,8 @@
       inspectionRow("Next", formatCandidate(nextBest, next && next.confidence)),
       inspectionRow("Previous", formatCandidate(previousBest, previous && previous.confidence)),
       inspectionRow("Fallback", formatScrollFallback()),
+      inspectionRow("Queue", formatAttentionQueue()),
+      inspectionRow("RA filter", formatRaFilterStatus()),
       "</dl>"
     ].join("");
   }
@@ -1094,6 +1673,702 @@
     }
 
     return "none";
+  }
+
+  function formatAttentionQueue() {
+    const current = getAttentionQueueItem(getFocusedPost());
+    const queuedCurrent = Boolean(current && state.attentionQueue.some((item) => item.key === current.key));
+    const label = queuedCurrent ? "current queued" : "current not queued";
+    return `${state.attentionQueue.length} item${state.attentionQueue.length === 1 ? "" : "s"}; ${label}`;
+  }
+
+  function toggleRaFilter() {
+    if (!isRaBerlinEventsPage()) {
+      announce("RA only");
+      return;
+    }
+
+    if (state.raFilter.mode === "ghost") {
+      state.raFilter.mode = "filtered";
+      state.raFilter.enabled = true;
+      state.raFilter.userDisabled = false;
+      setRaFilterPageMode();
+      updateRaFilterUi();
+      announce("RA filtered");
+      scheduleRaFilter(0);
+      return;
+    }
+
+    if (state.raFilter.mode === "filtered") {
+      state.raFilter.mode = "all";
+      state.raFilter.enabled = false;
+      state.raFilter.userDisabled = true;
+      clearRaFilterMarks();
+      state.raFilter.status = null;
+      setRaFilterPageMode();
+      updateRaFilterUi();
+      announce("RA all");
+      updateInspector();
+      return;
+    }
+
+    state.raFilter.mode = "ghost";
+    state.raFilter.enabled = true;
+    state.raFilter.userDisabled = false;
+    state.raFilter.lastSignature = "";
+    setRaFilterPageMode();
+    updateRaFilterUi();
+    announce("RA ghost");
+    scheduleRaFilter(0);
+  }
+
+  function maybeRunRaFilter() {
+    updateRaFilterUi();
+    if (!isRaBerlinEventsPage()) {
+      return;
+    }
+
+    if (!state.raFilter.enabled && !state.raFilter.userDisabled) {
+      state.raFilter.mode = "ghost";
+      state.raFilter.enabled = true;
+    }
+
+    setRaFilterPageMode();
+    scheduleRaFilter(120);
+  }
+
+  function scheduleRaFilter(delay) {
+    if (!isRaBerlinEventsPage() || !state.raFilter.enabled || state.raFilter.running) {
+      return;
+    }
+
+    clearTimeout(state.raFilter.timer);
+    state.raFilter.timer = window.setTimeout(() => {
+      runRaLgbtqFilter().catch((error) => {
+        state.raFilter.running = false;
+        state.raFilter.status = {
+          state: "error",
+          error: error && error.message ? error.message : String(error)
+        };
+        updateRaFilterUi();
+        updateInspector();
+      });
+    }, delay);
+  }
+
+  async function runRaLgbtqFilter(options = {}) {
+    if (!isRaBerlinEventsPage() && !options.force) {
+      return null;
+    }
+
+    if (options.force && !state.raFilter.enabled) {
+      state.raFilter.mode = "ghost";
+      state.raFilter.enabled = true;
+      state.raFilter.userDisabled = false;
+    }
+
+    const cards = getRaEventCards();
+    const signature = cards.map((card) => card.href).join("|");
+    const hasUnknownMarks = cards.some((card) => card.element && card.element.dataset.happyRaFilter === "unknown");
+    if (!options.force && !hasUnknownMarks && signature && signature === state.raFilter.lastSignature && state.raFilter.status && state.raFilter.status.state === "done") {
+      return state.raFilter.status;
+    }
+
+    const runId = state.raFilter.runId + 1;
+    state.raFilter.runId = runId;
+    state.raFilter.running = true;
+    state.raFilter.lastSignature = signature;
+    state.raFilter.frameFallbacks = 0;
+    state.raFilter.status = {
+      state: "running",
+      total: cards.length,
+      scanned: 0,
+      matched: 0,
+      today: 0,
+      hidden: 0,
+      unknown: 0,
+      errors: 0
+    };
+    ensureRaFilterPageStyle();
+    setRaFilterPageMode();
+    updateRaFilterUi();
+
+    const today = options.today || getBerlinTodayISO(options.now || new Date());
+    const detailsByHref = options.detailsByHref || null;
+    const results = [];
+
+    for (const card of cards) {
+      if (runId !== state.raFilter.runId) {
+        return state.raFilter.status;
+      }
+
+      markRaCard(card.element, "loading");
+      let result;
+      try {
+        if (card.dateHint && !raDateHintMatchesToday(card.dateHint, today)) {
+          result = {
+            href: card.href,
+            title: card.title,
+            today: false,
+            signals: [],
+            matched: false
+          };
+        } else {
+          const detail = detailsByHref && detailsByHref[card.href] ? detailsByHref[card.href] : await getRaEventDetail(card.href);
+          const text = [
+            card.text,
+            detail.title,
+            detail.description,
+            detail.text
+          ].join("\n");
+          const todayMatch = isRaEventToday(detail, card, today);
+          const signals = getRaLgbtqSignals(text);
+          const matched = todayMatch && signals.length > 0;
+          result = {
+            href: card.href,
+            title: detail.title || card.title,
+            today: todayMatch,
+            signals,
+            matched
+          };
+        }
+      } catch (error) {
+        result = {
+          href: card.href,
+          title: card.title,
+          today: raDateHintMatchesToday(card.dateHint, today),
+          signals: [],
+          matched: false,
+          error: error && error.message ? error.message : String(error)
+        };
+        state.raFilter.status.errors += 1;
+      }
+      results.push(result);
+      markRaCard(card.element, getRaFilterCardStatus(result), result);
+      state.raFilter.status.scanned += 1;
+      state.raFilter.status.today += result.today ? 1 : 0;
+      state.raFilter.status.matched += result.matched ? 1 : 0;
+      state.raFilter.status.hidden += !result.matched && !result.error ? 1 : 0;
+      state.raFilter.status.unknown += result.error ? 1 : 0;
+      updateRaFilterUi();
+    }
+
+    state.raFilter.running = false;
+    state.raFilter.status = {
+      state: "done",
+      total: cards.length,
+      scanned: cards.length,
+      matched: results.filter((result) => result.matched).length,
+      today: results.filter((result) => result.today).length,
+      hidden: results.filter((result) => !result.matched && !result.error).length,
+      unknown: results.filter((result) => result.error).length,
+      errors: results.filter((result) => result.error).length,
+      todayISO: today,
+      results
+    };
+    updateRaFilterUi();
+    updateInspector();
+    return state.raFilter.status;
+  }
+
+  function isRaBerlinEventsPage() {
+    return /(^|\.)ra\.co$/i.test(window.location.hostname) && /^\/events\/de\/berlin\/?$/.test(window.location.pathname);
+  }
+
+  function getRaEventCards(root = document) {
+    const anchors = Array.from(root.querySelectorAll([
+      "a[data-pw-test-id='event-title-link'][href*='/events/']",
+      "a[data-pw-test-id='event-image-link'][href*='/events/']",
+      "a[href*='/events/']"
+    ].join(",")));
+    const cards = [];
+    const seen = new Set();
+
+    anchors.forEach((anchor) => {
+      const href = normalizeRaEventHref(anchor.getAttribute("href"));
+      if (!href || seen.has(href)) {
+        return;
+      }
+
+      const element = getRaEventCardElement(anchor);
+      if (!element || element === document.body || element === document.documentElement) {
+        return;
+      }
+
+      seen.add(href);
+      cards.push({
+        href,
+        element,
+        title: getRaCardTitle(element, anchor),
+        text: getCompactText(element),
+        dateHint: getRaCardDateHint(element)
+      });
+    });
+
+    return cards;
+  }
+
+  function normalizeRaEventHref(href) {
+    if (!href) {
+      return "";
+    }
+
+    try {
+      const url = new URL(href, window.location.href);
+      if (!/(^|\.)ra\.co$/i.test(url.hostname) || !/^\/events\/\d+/.test(url.pathname)) {
+        return "";
+      }
+      return `${url.origin}${url.pathname}`;
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function getRaEventCardElement(anchor) {
+    const markedCard = anchor.closest("[data-testid='event-upcoming-card'], [data-pw-test-id='popular-event-item']");
+    if (markedCard) {
+      return markedCard;
+    }
+
+    let best = null;
+    let node = anchor;
+    for (let depth = 0; node && depth < 8; depth += 1, node = node.parentElement) {
+      if (!node.querySelectorAll) {
+        continue;
+      }
+
+      const rect = node.getBoundingClientRect();
+      const eventLinks = node.querySelectorAll("a[href*='/events/']").length;
+      const text = getCompactText(node);
+      if (rect.width >= 140 && rect.height >= 80 && eventLinks <= 3 && text.length >= 4) {
+        best = node;
+      }
+    }
+
+    return best || anchor.closest("li, article, section, div");
+  }
+
+  function getRaCardTitle(card, anchor) {
+    const title = card.querySelector("[data-pw-test-id='event-title'], a[data-pw-test-id='event-title-link']");
+    return getCompactText(title || anchor).slice(0, 160);
+  }
+
+  function getRaCardDateHint(card) {
+    const text = getCompactText(card);
+    const match = text.match(/\b(?:mon|tue|wed|thu|fri|sat|sun),?\s+\d{1,2}\s+[a-z]{3,9}\b/i);
+    return match ? match[0] : "";
+  }
+
+  async function getRaEventDetail(href) {
+    if (state.raFilter.detailCache.has(href)) {
+      return state.raFilter.detailCache.get(href);
+    }
+
+    const response = await fetch(href, { credentials: "include" });
+    if (!response.ok) {
+      throw new Error(`RA detail ${response.status}`);
+    }
+    const html = await response.text();
+    const detail = parseRaEventDetailHtml(html, href);
+    if (detail.hasEventData) {
+      state.raFilter.detailCache.set(href, detail);
+      return detail;
+    }
+
+    if (state.raFilter.frameFallbacks >= 3) {
+      throw new Error("RA detail missing event metadata");
+    }
+
+    state.raFilter.frameFallbacks += 1;
+    const frameDetail = await getRaEventDetailFromFrame(href);
+    state.raFilter.detailCache.set(href, frameDetail);
+    return frameDetail;
+  }
+
+  function getRaEventDetailFromFrame(href) {
+    if (window.__happyBrowserTestHooksRequested && !window.__happyBrowserAllowFrameFallback) {
+      return Promise.reject(new Error("RA detail missing event metadata"));
+    }
+
+    return new Promise((resolve, reject) => {
+      const iframe = document.createElement("iframe");
+      let settled = false;
+      const timeout = window.setTimeout(() => finish(null), 2500);
+      iframe.src = href;
+      iframe.setAttribute("aria-hidden", "true");
+      iframe.tabIndex = -1;
+      iframe.style.cssText = [
+        "position:absolute",
+        "width:1px",
+        "height:1px",
+        "left:-9999px",
+        "top:0",
+        "opacity:0",
+        "pointer-events:none"
+      ].join(";");
+      iframe.addEventListener("load", () => {
+        let html = "";
+        try {
+          const doc = iframe.contentDocument;
+          html = doc && doc.documentElement ? doc.documentElement.outerHTML : "";
+        } catch (_error) {
+          html = "";
+        }
+        finish(html);
+      });
+      iframe.addEventListener("error", () => finish(null));
+      document.documentElement.appendChild(iframe);
+
+      function finish(html) {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        window.clearTimeout(timeout);
+        iframe.remove();
+        if (!html) {
+          reject(new Error("RA detail missing event metadata"));
+          return;
+        }
+
+        const detail = parseRaEventDetailHtml(html, href);
+        if (!detail.hasEventData) {
+          reject(new Error("RA detail missing event metadata"));
+          return;
+        }
+        resolve(detail);
+      }
+    });
+  }
+
+  function parseRaEventDetailHtml(html, href = "") {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const jsonEvents = Array.from(doc.querySelectorAll("script[type='application/ld+json']"))
+      .flatMap((script) => parseJsonLdEvents(script.textContent));
+    const event = jsonEvents.find((item) => /event/i.test(String(item && item["@type"] || ""))) || {};
+    const metaDescription = doc.querySelector("meta[name='description'], meta[property='og:description']");
+    const title = event.name || doc.querySelector("h1") && getCompactText(doc.querySelector("h1")) || doc.title || "";
+    const description = event.description || metaDescription && metaDescription.getAttribute("content") || "";
+    const text = getCompactText(doc.body).slice(0, 5000);
+    const hasEventData = Boolean(event.startDate || event.description || /(^|\s)(venue|lineup|promoter|tickets|interested)(\s|$)/i.test(text));
+
+    return {
+      href,
+      title,
+      startDate: event.startDate || "",
+      description,
+      text,
+      hasEventData
+    };
+  }
+
+  function parseJsonLdEvents(text) {
+    if (!text) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(text);
+      const values = Array.isArray(parsed) ? parsed : [parsed];
+      return values.flatMap((value) => {
+        if (value && Array.isArray(value["@graph"])) {
+          return value["@graph"];
+        }
+        return value ? [value] : [];
+      });
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function isRaEventToday(detail, card, today) {
+    if (detail && detail.startDate && String(detail.startDate).slice(0, 10) === today) {
+      return true;
+    }
+
+    if (!card || !card.dateHint) {
+      return false;
+    }
+
+    return raDateHintMatchesToday(card.dateHint, today);
+  }
+
+  function raDateHintMatchesToday(dateHint, today) {
+    const parts = today.split("-").map((part) => Number(part));
+    if (parts.length !== 3) {
+      return false;
+    }
+
+    const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    const match = String(dateHint).toLowerCase().match(/\b(\d{1,2})\s+([a-z]{3})/);
+    if (!match) {
+      return false;
+    }
+
+    const month = monthNames.indexOf(match[2]) + 1;
+    return Number(match[1]) === parts[2] && month === parts[1];
+  }
+
+  function getRaLgbtqSignals(text) {
+    return RA_LGBTQ_PATTERNS
+      .filter((entry) => entry.pattern.test(text || ""))
+      .map((entry) => entry.label);
+  }
+
+  function getBerlinTodayISO(now) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Berlin",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).formatToParts(now);
+    const values = {};
+    parts.forEach((part) => {
+      values[part.type] = part.value;
+    });
+    return `${values.year}-${values.month}-${values.day}`;
+  }
+
+  function ensureRaFilterPageStyle() {
+    if (document.getElementById(RA_FILTER_PAGE_STYLE_ID)) {
+      return;
+    }
+
+    const style = document.createElement("style");
+    style.id = RA_FILTER_PAGE_STYLE_ID;
+    style.textContent = `
+      html[data-happy-ra-mode="filtered"] [data-happy-ra-filter="miss"] {
+        display: none !important;
+      }
+
+      html[data-happy-ra-mode="ghost"] [data-happy-ra-filter="miss"] {
+        display: flex !important;
+        opacity: 0.16 !important;
+        filter: grayscale(1) saturate(0.2) !important;
+        outline: 2px dashed rgba(255, 255, 255, 0.42) !important;
+        outline-offset: 3px !important;
+      }
+
+      html[data-happy-ra-mode="ghost"] [data-happy-ra-filter="miss"] img,
+      html[data-happy-ra-mode="ghost"] [data-happy-ra-filter="miss"] picture,
+      html[data-happy-ra-mode="ghost"] [data-happy-ra-filter="miss"] video {
+        opacity: 0.18 !important;
+      }
+
+      html[data-happy-ra-mode="all"] [data-happy-ra-filter] {
+        display: revert !important;
+        filter: none !important;
+        opacity: 1 !important;
+        outline: none !important;
+      }
+
+      [data-happy-ra-filter="loading"] {
+        opacity: 0.45 !important;
+      }
+
+      [data-happy-ra-filter="unknown"] {
+        opacity: 0.78 !important;
+        outline: 2px solid rgba(255, 202, 98, 0.76) !important;
+        outline-offset: 3px !important;
+      }
+
+      [data-happy-ra-filter="match"] {
+        outline: 2px solid rgba(20, 190, 120, 0.88) !important;
+        outline-offset: 3px !important;
+      }
+    `;
+    document.documentElement.appendChild(style);
+    setRaFilterPageMode();
+  }
+
+  function setRaFilterPageMode() {
+    if (!document.documentElement) {
+      return;
+    }
+
+    document.documentElement.dataset.happyRaMode = state.raFilter.enabled ? state.raFilter.mode : "all";
+  }
+
+  function markRaCard(element, status, result) {
+    if (!element) {
+      return;
+    }
+
+    element.dataset.happyRaFilter = status;
+    if (result) {
+      element.dataset.happyRaToday = String(result.today);
+      element.dataset.happyRaSignals = result.signals.join(", ");
+      element.setAttribute("title", getRaFilterCardTitle(result));
+    }
+  }
+
+  function getRaFilterCardStatus(result) {
+    if (result && result.error) {
+      return "unknown";
+    }
+
+    return result && result.matched ? "match" : "miss";
+  }
+
+  function getRaFilterCardTitle(result) {
+    if (result.error) {
+      return "Happy Browser: detail unavailable";
+    }
+
+    return result.signals.length ? `Happy Browser: ${result.signals.join(", ")}` : "Happy Browser: filtered out";
+  }
+
+  function clearRaFilterMarks() {
+    document.querySelectorAll("[data-happy-ra-filter]").forEach((element) => {
+      delete element.dataset.happyRaFilter;
+      delete element.dataset.happyRaToday;
+      delete element.dataset.happyRaSignals;
+      element.removeAttribute("title");
+    });
+  }
+
+  function updateRaFilterUi() {
+    if (!state.rail) {
+      return;
+    }
+
+    const isRaPage = isRaBerlinEventsPage();
+    const status = state.raFilter.status;
+    const button = state.rail.querySelector(".happy-browser-ra-filter-button");
+    const mode = state.raFilter.enabled ? state.raFilter.mode : "all";
+    state.rail.dataset.raPage = String(isRaPage);
+    state.rail.dataset.raFilterEnabled = String(isRaPage && state.raFilter.enabled);
+    state.rail.dataset.raFilterRunning = String(Boolean(state.raFilter.running));
+    state.rail.dataset.raMode = isRaPage ? mode : "";
+    state.rail.dataset.raFilterPhase = isRaPage ? getRaFilterPhase(status) : "";
+    state.rail.dataset.raFilterMatched = String(status && status.matched || 0);
+    state.rail.dataset.raFilterToday = String(status && status.today || 0);
+    state.rail.dataset.raFilterHidden = String(status && status.hidden || 0);
+    state.rail.dataset.raFilterUnknown = String(status && status.unknown || 0);
+
+    if (button) {
+      const label = formatRaFilterButtonLabel(status);
+      button.setAttribute("aria-label", label);
+      button.setAttribute("title", label);
+    }
+
+    const modeChip = state.rail.querySelector(".happy-browser-ra-mode");
+    if (modeChip) {
+      modeChip.textContent = mode;
+    }
+
+    const progressChip = state.rail.querySelector(".happy-browser-ra-progress");
+    if (progressChip) {
+      const progressLabel = formatRaFilterProgressLabel(status);
+      progressChip.textContent = progressLabel;
+      progressChip.setAttribute("title", formatRaFilterStatus());
+      progressChip.setAttribute("aria-label", `RA filter ${progressLabel}`);
+    }
+  }
+
+  function getRaFilterPhase(status) {
+    if (!state.raFilter.enabled) {
+      return "all";
+    }
+
+    if (!status) {
+      return "ready";
+    }
+
+    if (status.state === "running" || status.state === "done" || status.state === "error") {
+      return status.state;
+    }
+
+    return "ready";
+  }
+
+  function formatRaFilterButtonLabel(status) {
+    if (!isRaBerlinEventsPage()) {
+      return "Filter RA events for today and LGBTQ signals";
+    }
+
+    if (!state.raFilter.enabled) {
+      return "RA all events visible";
+    }
+
+    if (!status) {
+      return state.raFilter.mode === "ghost" ? "RA ghost filter starting" : "RA filter starting";
+    }
+
+    if (status.state === "running") {
+      return `RA filtering ${status.scanned || 0}/${status.total || 0}`;
+    }
+
+    if (status.state === "error") {
+      return "RA filter needs retry";
+    }
+
+    const modeLabel = state.raFilter.mode === "ghost" ? "ghost" : "filtered";
+    if (status.unknown) {
+      return `RA ${modeLabel}: ${status.matched || 0} matched; ${status.unknown} unknown`;
+    }
+
+    return `RA ${modeLabel}: ${status.matched || 0} matched today`;
+  }
+
+  function formatRaFilterProgressLabel(status) {
+    if (!isRaBerlinEventsPage()) {
+      return "";
+    }
+
+    if (!state.raFilter.enabled) {
+      return "all";
+    }
+
+    if (!status) {
+      return "ready";
+    }
+
+    if (status.state === "running") {
+      return `scan ${status.scanned || 0}/${status.total || 0}`;
+    }
+
+    if (status.state === "error") {
+      return "retry";
+    }
+
+    if (status.state === "done") {
+      const suffix = status.unknown ? ` ?${status.unknown}` : "";
+      return `done ${status.matched || 0}/${status.today || 0}${suffix}`;
+    }
+
+    return "ready";
+  }
+
+  function formatRaFilterStatus() {
+    const status = state.raFilter.status;
+    if (!isRaBerlinEventsPage()) {
+      return "not on RA Berlin";
+    }
+
+    if (!state.raFilter.enabled) {
+      return "all visible";
+    }
+
+    if (!status) {
+      return "starting";
+    }
+
+    if (status.state === "error") {
+      return escapeHtml(status.error || "error");
+    }
+
+    if (status.state === "running") {
+      return `${status.scanned || 0}/${status.total || 0} scanned`;
+    }
+
+    return `${status.matched || 0}/${status.today || 0} today matched; ${status.hidden || 0} hidden; ${status.unknown || 0} unknown`;
+  }
+
+  function getCompactText(element) {
+    return String(element && (element.innerText || element.textContent) || "")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function escapeHtml(value) {
