@@ -35,7 +35,7 @@ Best for entitlements, signing, and App Store packaging checks.
 - **Browser:** Safari
 - **Build/install:** Xcode → scheme **Happy Browser** → **⌘R** (Debug)
 - **Product identity (Debug only):**
-  - App: **Happy Browser Dev** (`com.gitwid.happybrowser.dev`, bundle `HappyBrowserDev.app`)
+  - App: **Happy Browser Dev** (`com.gitwid.happybrowser.dev`)
   - Extension: **Happy Browser Dev Extension**
 - **Enable unsigned extensions:**
   - Safari → Settings → Advanced → show developer features if needed

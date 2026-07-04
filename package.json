@@ -1,6 +1,6 @@
 {
   "name": "happy-browser",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "private": true,
   "description": "Chrome extension for blind previous and next page navigation.",
   "scripts": {

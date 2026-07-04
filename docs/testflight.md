@@ -13,8 +13,8 @@ These identifiers must exist in the Apple Developer account before App Store Con
 
 - Scheme: `Happy Browser`
 - Configuration for archive: `Release`
-- Version: `1.0`
-- Build: `1`
+- Version: `1.1`
+- Build: `3`
 - Minimum macOS: `14.0`
 - Hardened Runtime: enabled
 - App Sandbox: enabled
