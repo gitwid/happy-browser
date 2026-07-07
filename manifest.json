@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Happy Browser",
+  "name": "Trillian",
   "description": "Adds blind previous and next navigation to pages with arrows, gestures, and large page controls.",
   "version": "0.3.0",
   "icons": {
@@ -65,7 +65,7 @@
     }
   },
   "action": {
-    "default_title": "Happy Browser",
+    "default_title": "Trillian",
     "default_popup": "src/options.html"
   }
 }

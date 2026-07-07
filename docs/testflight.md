@@ -1,6 +1,6 @@
 # Safari TestFlight Prep
 
-Happy Browser's Safari build is a macOS containing app with an embedded Safari Web Extension.
+Fenchurch is the Safari TestFlight candidate: a macOS containing app with an embedded Safari Web Extension.
 
 ## Bundle Identifiers
 
@@ -13,6 +13,7 @@ These identifiers must exist in the Apple Developer account before App Store Con
 
 - Scheme: `Happy Browser`
 - Configuration for archive: `Release`
+- Release display identity: `Fenchurch` / `Fenchurch Extension`
 - Version: `1.1`
 - Build: `3`
 - Minimum macOS: `14.0`
@@ -32,8 +33,8 @@ The containing app does not request outgoing network sandbox access. The extensi
    - Bundle ID: `com.gitwid.happybrowser`
    - SKU: `happy-browser-macos`
 4. In Xcode, set the Team for both targets:
-   - `Happy Browser`
-   - `Happy Browser Extension`
+  - `Happy Browser`
+  - `Happy Browser Extension`
 
 ## Archive For TestFlight
 
@@ -87,7 +88,7 @@ Privacy posture:
 
 Permission explanation:
 
-Happy Browser needs access to normal web pages so it can inspect visible page controls and find previous, next, and load-more navigation targets. This analysis runs locally in the browser and is used only to provide navigation controls shown to the user.
+Fenchurch needs access to normal web pages so it can inspect visible page controls and find previous, next, and load-more navigation targets. This analysis runs locally in the browser and is used only to provide navigation controls shown to the user.
 
 Compliance notes:
 
@@ -99,7 +100,7 @@ Compliance notes:
 
 Use this in App Store Connect → TestFlight → What to Test:
 
-> Happy Browser 1.1 (build 3) — Safari navigation rail, toggle, keyboard shortcut, Wikipedia link preview, and experimental RA Berlin today filter (ra.co only). Core navigation is local page analysis. RA filter and Wikipedia preview may fetch public HTTPS pages on supported sites; nothing is sent to a Happy Browser server. Report broken navigation, missing controls, or RA filter false positives/negatives.
+> Fenchurch 1.1 (build 3) — Safari navigation rail, toggle, keyboard shortcut, Wikipedia link preview, and experimental RA Berlin weekly queer-event filter (ra.co only). Core navigation is local page analysis. RA filter and Wikipedia preview may fetch public HTTPS pages on supported sites; nothing is sent to a Happy Browser server. Report broken navigation, missing controls, or RA filter false positives/negatives.
 
 ## Release Branch
 

@@ -471,7 +471,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Happy Browser Extension/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Happy Browser Dev Extension";
+				INFOPLIST_KEY_CFBundleDisplayName = "Trillian Extension";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "2026 Happy Browser";
@@ -519,7 +519,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Happy Browser Extension/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Happy Browser Extension";
+				INFOPLIST_KEY_CFBundleDisplayName = "Fenchurch Extension";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -570,7 +570,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Happy Browser/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Happy Browser Dev";
+				INFOPLIST_KEY_CFBundleDisplayName = Trillian;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -588,7 +588,7 @@
 					WebKit,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.gitwid.happybrowser.dev;
-				PRODUCT_NAME = "Happy Browser Dev";
+				PRODUCT_NAME = Trillian;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -624,7 +624,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Happy Browser/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Happy Browser";
+				INFOPLIST_KEY_CFBundleDisplayName = Fenchurch;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -642,7 +642,7 @@
 					WebKit,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.gitwid.happybrowser;
-				PRODUCT_NAME = "Happy Browser";
+				PRODUCT_NAME = Fenchurch;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

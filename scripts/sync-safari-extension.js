@@ -5,7 +5,7 @@ const root = path.resolve(__dirname, "..");
 const sourceDir = path.join(root, "src");
 const sourceManifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "utf8"));
 const devMode = process.env.HAPPY_BROWSER_DEV === "1";
-const manifestName = devMode ? "Happy Browser Dev" : "Happy Browser";
+const manifestName = devMode ? "Trillian" : "Fenchurch";
 const targets = [
   {
     label: "Safari extension staging",
@@ -35,7 +35,12 @@ for (const target of targets) {
   targetManifest.name = manifestName;
   targetManifest.version = sourceManifest.version;
   targetManifest.description = sourceManifest.description;
+  targetManifest.permissions = sourceManifest.permissions;
+  targetManifest.host_permissions = sourceManifest.host_permissions;
   targetManifest.content_scripts = sourceManifest.content_scripts;
+  targetManifest.commands = sourceManifest.commands;
+  targetManifest.action = sourceManifest.action ? { ...sourceManifest.action, default_title: manifestName } : undefined;
+  targetManifest.options_ui = sourceManifest.options_ui;
   if (sourceManifest.background) {
     targetManifest.background = sourceManifest.background;
   } else {

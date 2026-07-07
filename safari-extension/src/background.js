@@ -28,7 +28,7 @@ async function fetchRaDetail(href) {
   return {
     ok: response.ok,
     status: response.status,
-    text: response.ok ? text : ""
+    text
   };
 }
 

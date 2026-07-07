@@ -34,6 +34,11 @@
       timer: null,
       lastSignature: "",
       detailCache: new Map(),
+      proofResults: new Map(),
+      proofHost: null,
+      proofHideTimer: null,
+      proofActiveElement: null,
+      confirmedSignals: {},
       status: null,
       runId: 0,
       userDisabled: false,
@@ -44,6 +49,7 @@
     versionLabel: getExtensionVersionLabel()
   };
   const ATTENTION_QUEUE_STORAGE_KEY = "happyAttentionQueue";
+  const RA_SIGNAL_CONFIRMATIONS_STORAGE_KEY = "happyRaSignalConfirmations";
   const RA_FILTER_PAGE_STYLE_ID = "happy-browser-ra-filter-style";
   const RA_DETAIL_SCAN_CONCURRENCY = 1;
   const RA_DETAIL_REQUEST_MIN_INTERVAL_MS = 650;
@@ -53,7 +59,11 @@
     { label: "queer", pattern: /\bqueer\b/i },
     { label: "lgbtq", pattern: /\blgbtq?\+?\b/i },
     { label: "flinta", pattern: /\bflinta\*?\b/i },
-    { label: "trans", pattern: /\btrans\b|\bnon[\s-]?binary\b/i }
+    { label: "trans", pattern: /\btrans\b|\bnon[\s-]?binary\b|\bnot\s+binary\b/i },
+    { label: "drag", pattern: /\bdrag\b|\bgogo\b|\bgo-go\b/i },
+    { label: "darkroom", pattern: /\bdark\s*room\b|\bdarkroom\b/i },
+    { label: "consent", pattern: /\bconsent\b|\bharm\s+reduction\b|\bno\s+racism\b|\bno\s+discrimination\b/i },
+    { label: "queer nightlife", pattern: /\b(gegen|lecken|cuntcore|cunt\s*core|tipsy\s+disco|vrau|pleasure\s+patterns|la\s+casita|playgirlparty|fiesta\s+dame)\b/i }
   ];
 
   const railCss = `
@@ -143,17 +153,30 @@
       position: fixed;
       top: calc(var(--happy-toggle-top, 16px) + 86px);
       right: var(--happy-toggle-right, 16px);
-      width: 58px;
-      color: rgba(248, 251, 255, 0.64);
+      max-width: 118px;
+      padding: 4px 6px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 8px;
+      background: rgba(18, 24, 28, 0.42);
+      color: rgba(248, 251, 255, 0.78);
       font-size: 10px;
-      font-weight: 650;
+      font-weight: 720;
       letter-spacing: 0;
-      line-height: 1;
+      line-height: 1.12;
       text-align: center;
       text-shadow: 0 1px 4px rgba(0, 0, 0, 0.62);
-      opacity: 0.56;
+      opacity: 0;
       pointer-events: none;
+      transform: translateY(-4px);
+      transition: opacity 140ms ease, transform 140ms ease;
       user-select: none;
+      backdrop-filter: blur(14px);
+    }
+
+    #happy-browser-rail:hover .happy-browser-version,
+    #happy-browser-rail:focus-within .happy-browser-version {
+      opacity: 0.98;
+      transform: translateY(0);
     }
 
     .happy-browser-queue-button {
@@ -486,8 +509,11 @@
       getRaEventCards,
       getRaFilterStatus: () => state.raFilter.status,
       getRaFilterMode: () => state.raFilter.enabled ? state.raFilter.mode : "all",
+      getRaProofCard: () => state.raFilter.proofHost,
+      getRaSignalConfirmations,
       isRaBerlinEventsPage,
       parseRaEventDetailHtml,
+      readRaFrameDetailWhenReady,
       runRaLgbtqFilter,
       toggleRaFilter,
       queueFocusedPost,
@@ -582,6 +608,7 @@
     const version = document.createElement("div");
     version.className = "happy-browser-version";
     version.textContent = state.versionLabel;
+    version.setAttribute("title", state.versionLabel);
     version.setAttribute("aria-hidden", "true");
     const status = document.createElement("div");
     status.className = "happy-browser-status";
@@ -658,12 +685,24 @@
     try {
       const manifest = chrome.runtime && chrome.runtime.getManifest ? chrome.runtime.getManifest() : null;
       if (manifest && manifest.version) {
-        return `v${manifest.version}`;
+        return formatExtensionVersionLabel(manifest);
       }
     } catch (error) {
       // Safari can be conservative about extension APIs during early injection.
     }
-    return "v0.2.5";
+    return "Trillian v0.3.0";
+  }
+
+  function formatExtensionVersionLabel(manifest) {
+    const name = String(manifest && manifest.name || "");
+    const version = String(manifest && manifest.version || "0.0.0");
+    if (/fenchurch/i.test(name)) {
+      return `🐬🐬 Fenchurch v${version}`;
+    }
+    if (/trillian|dev/i.test(name)) {
+      return `🛸 Trillian v${version}`;
+    }
+    return `${name || "Happy Browser"} v${version}`;
   }
 
   function makeRailButton(direction, text, label) {
@@ -838,6 +877,8 @@
   function installListeners() {
     document.addEventListener("keydown", onKeyDown, true);
     document.addEventListener("mousemove", onMouseActivity, true);
+    document.addEventListener("mouseover", onRaProofHoverStart, true);
+    document.addEventListener("mouseout", onRaProofHoverEnd, true);
     document.addEventListener("pointermove", onMouseActivity, true);
     document.addEventListener("wheel", onWheel, { passive: true, capture: true });
     document.addEventListener("click", () => scheduleAnalyze(320), true);
@@ -1773,7 +1814,10 @@
     const cards = getRaEventCards();
     const signature = cards.map((card) => card.href).join("|");
     const hasUnknownMarks = cards.some((card) => card.element && card.element.dataset.happyRaFilter === "unknown");
-    if (!options.force && !hasUnknownMarks && signature && signature === state.raFilter.lastSignature && state.raFilter.status && state.raFilter.status.state === "done") {
+    const today = options.today || getBerlinTodayISO(options.now || new Date());
+    const dateWindow = options.dateWindow || getRaFilterDateWindow(today, options.dateScope);
+    const dateWindowKey = getRaDateWindowKey(dateWindow);
+    if (!options.force && !hasUnknownMarks && signature && signature === state.raFilter.lastSignature && state.raFilter.status && state.raFilter.status.state === "done" && state.raFilter.status.dateWindowKey === dateWindowKey) {
       return state.raFilter.status;
     }
 
@@ -1792,16 +1836,18 @@
       hidden: 0,
       unknown: 0,
       errors: 0,
+      dateWindow,
+      dateWindowKey,
       sources: {}
     };
     ensureRaFilterPageStyle();
     setRaFilterPageMode();
     updateRaFilterUi();
 
-    const today = options.today || getBerlinTodayISO(options.now || new Date());
     const detailsByHref = options.detailsByHref || null;
     const results = await scanRaEventCards(cards, {
       today,
+      dateWindow,
       detailsByHref,
       runId,
       concurrency: options.concurrency
@@ -1822,6 +1868,8 @@
       unknown: results.filter((result) => result.error).length,
       errors: results.filter((result) => result.error).length,
       todayISO: today,
+      dateWindow,
+      dateWindowKey,
       sources: countRaResultSources(results),
       results
     };
@@ -1871,8 +1919,10 @@
 
   async function scanRaEventCard(card, options) {
     markRaCard(card.element, "loading");
+    const dateHintMatches = card.dateHint ? raDateHintInDateWindow(card.dateHint, options.dateWindow) : false;
+    const cardSignalText = getRaCardSignalText(card);
     try {
-      if (card.dateHint && !raDateHintMatchesToday(card.dateHint, options.today)) {
+      if (card.dateHint && !dateHintMatches) {
         return {
           href: card.href,
           title: card.title,
@@ -1887,12 +1937,12 @@
       const detail = fixtureDetail || await getRaEventDetail(card.href);
       const source = detail.source || (fixtureDetail ? "fixture" : "unknown");
       const text = [
-        card.title,
+        cardSignalText,
         detail.title,
         detail.description,
         detail.signalText
       ].join("\n");
-      const todayMatch = isRaEventToday(detail, card, options.today);
+      const todayMatch = isRaEventInDateWindow(detail, card, options.dateWindow);
       const signals = getRaLgbtqSignals(text);
       const matched = todayMatch && signals.length > 0;
       return {
@@ -1900,20 +1950,63 @@
         title: detail.title || card.title,
         today: todayMatch,
         signals,
+        evidence: getRaSignalEvidence(text, signals),
+        image: detail.image || getRaCardImage(card.element),
+        dateHint: card.dateHint || "",
+        cardText: card.text || "",
         matched,
         source
       };
     } catch (error) {
+      const cardSignals = dateHintMatches ? getRaLgbtqSignals(cardSignalText) : [];
+      if (cardSignals.length) {
+        return {
+          href: card.href,
+          title: getRaCardFallbackTitle(card),
+          today: true,
+          signals: cardSignals,
+          evidence: getRaSignalEvidence(cardSignalText, cardSignals),
+          image: getRaCardImage(card.element),
+          dateHint: card.dateHint || "",
+          cardText: card.text || "",
+          matched: true,
+          source: "card"
+        };
+      }
+
       return {
         href: card.href,
         title: card.title,
-        today: raDateHintMatchesToday(card.dateHint, options.today),
+        today: dateHintMatches,
         signals: [],
         matched: false,
         error: error && error.message ? error.message : String(error),
         source: error && error.happyRaAntiBot ? "blocked" : "unknown"
       };
     }
+  }
+
+  function getRaCardSignalText(card) {
+    return [
+      card && card.title,
+      card && card.text
+    ].filter(Boolean).join("\n");
+  }
+
+  function getRaCardFallbackTitle(card) {
+    if (card && card.title) {
+      return card.title;
+    }
+
+    const links = Array.from(card && card.element && card.element.querySelectorAll
+      ? card.element.querySelectorAll("a[href*='/events/']")
+      : []);
+    const linkTitle = links.map((link) => getCompactText(link)).find(Boolean);
+    if (linkTitle) {
+      return linkTitle.slice(0, 160);
+    }
+
+    return getCompactText(card && card.element).slice(0, 160) || "RA event";
   }
 
   function isRaBerlinEventsPage() {
@@ -1970,7 +2063,7 @@
   }
 
   function getRaEventCardElement(anchor) {
-    const markedCard = anchor.closest("[data-testid='event-upcoming-card'], [data-pw-test-id='popular-event-item']");
+    const markedCard = anchor.closest("[data-testid='event-upcoming-card'], [data-testid='event-listing-card'], [data-pw-test-id='popular-event-item']");
     if (markedCard) {
       return markedCard;
     }
@@ -2001,7 +2094,24 @@
   function getRaCardDateHint(card) {
     const text = getCompactText(card);
     const match = text.match(/\b(?:mon|tue|wed|thu|fri|sat|sun),?\s+\d{1,2}\s+[a-z]{3,9}\b/i);
-    return match ? match[0] : "";
+    if (match) {
+      return match[0];
+    }
+
+    return getRaGroupedDateHint(card);
+  }
+
+  function getRaGroupedDateHint(card) {
+    let node = card && card.previousElementSibling;
+    for (let depth = 0; node && depth < 60; depth += 1, node = node.previousElementSibling) {
+      const text = getCompactText(node);
+      const match = text.match(/\b(?:mon|tue|wed|thu|fri|sat|sun),?\s+\d{1,2}\s+[a-z]{3,9}\b/i);
+      if (match) {
+        return match[0];
+      }
+    }
+
+    return "";
   }
 
   async function getRaEventDetail(href) {
@@ -2091,10 +2201,11 @@
 
   async function fetchRaEventDetailDirect(href) {
     const response = await fetch(href, { credentials: "include" });
-    if (!response.ok) {
+    const text = await response.text();
+    if (!response.ok && !text) {
       throw new Error(`RA detail ${response.status}`);
     }
-    return response.text();
+    return text;
   }
 
   function fetchRaEventDetailViaBackground(href) {
@@ -2120,8 +2231,13 @@
             return;
           }
 
-          if (!response || !response.ok) {
+          if (!response) {
             reject(new Error(response && response.error || `RA detail ${response && response.status || "unavailable"}`));
+            return;
+          }
+
+          if (!response.ok && !response.text) {
+            reject(new Error(response.error || `RA detail ${response.status || "unavailable"}`));
             return;
           }
 
@@ -2141,8 +2257,6 @@
 
     return new Promise((resolve, reject) => {
       const iframe = document.createElement("iframe");
-      let settled = false;
-      const timeout = window.setTimeout(() => finish(null), 2500);
       iframe.src = href;
       iframe.setAttribute("aria-hidden", "true");
       iframe.tabIndex = -1;
@@ -2155,7 +2269,27 @@
         "opacity:0",
         "pointer-events:none"
       ].join(";");
-      iframe.addEventListener("load", () => {
+      document.documentElement.appendChild(iframe);
+      readRaFrameDetailWhenReady(iframe, href)
+        .then(resolve)
+        .catch(reject)
+        .finally(() => iframe.remove());
+    });
+  }
+
+  function readRaFrameDetailWhenReady(iframe, href, options = {}) {
+    const timeoutMs = options.timeoutMs || 6000;
+    const intervalMs = options.intervalMs || 200;
+
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      let pollTimer = 0;
+      const timeout = window.setTimeout(() => finish(null), timeoutMs);
+      const poll = () => {
+        if (settled) {
+          return;
+        }
+
         let html = "";
         try {
           const doc = iframe.contentDocument;
@@ -2163,29 +2297,38 @@
         } catch (_error) {
           html = "";
         }
-        finish(html);
-      });
-      iframe.addEventListener("error", () => finish(null));
-      document.documentElement.appendChild(iframe);
 
-      function finish(html) {
+        if (html) {
+          const detail = parseRaEventDetailHtml(html, href);
+          if (detail.antiBotBlocked) {
+            finish(null, makeRaAntiBotError("frame"));
+            return;
+          }
+          if (detail.hasEventData) {
+            finish(detail);
+            return;
+          }
+        }
+
+        pollTimer = window.setTimeout(poll, intervalMs);
+      };
+
+      iframe.addEventListener("load", poll);
+      iframe.addEventListener("error", () => finish(null));
+      poll();
+
+      function finish(detail, error) {
         if (settled) {
           return;
         }
         settled = true;
         window.clearTimeout(timeout);
-        iframe.remove();
-        if (!html) {
-          reject(new Error("RA detail missing event metadata"));
+        window.clearTimeout(pollTimer);
+        if (error) {
+          reject(error);
           return;
         }
-
-        const detail = parseRaEventDetailHtml(html, href);
-        if (detail.antiBotBlocked) {
-          reject(makeRaAntiBotError("frame"));
-          return;
-        }
-        if (!detail.hasEventData) {
+        if (!detail) {
           reject(new Error("RA detail missing event metadata"));
           return;
         }
@@ -2200,10 +2343,12 @@
       .flatMap((script) => parseJsonLdEvents(script.textContent));
     const event = jsonEvents.find((item) => /event/i.test(String(item && item["@type"] || ""))) || {};
     const metaDescription = doc.querySelector("meta[name='description'], meta[property='og:description']");
+    const metaImage = doc.querySelector("meta[property='og:image'], meta[name='twitter:image']");
     const nextDataText = extractRaNextDataEventText(doc, href);
     const trustedDomText = getRaTrustedEventDetailText(doc);
     const title = event.name || doc.querySelector("h1") && getCompactText(doc.querySelector("h1")) || doc.title || "";
     const description = event.description || metaDescription && metaDescription.getAttribute("content") || "";
+    const image = getRaEventImageUrl(event.image) || metaImage && metaImage.getAttribute("content") || "";
     const eventJsonText = getRaJsonEventText(event);
     const signalText = [
       eventJsonText,
@@ -2218,6 +2363,7 @@
       title,
       startDate: event.startDate || "",
       description,
+      image,
       signalText,
       antiBotBlocked: isRaAntiBotDetailHtml(doc, html),
       hasEventData
@@ -2267,6 +2413,26 @@
   function getRaEventIdFromHref(href) {
     const match = String(href || "").match(/\/events\/(\d+)/);
     return match ? match[1] : "";
+  }
+
+  function getRaEventImageUrl(image) {
+    if (!image) {
+      return "";
+    }
+
+    if (typeof image === "string") {
+      return image;
+    }
+
+    if (Array.isArray(image)) {
+      return image.map(getRaEventImageUrl).find(Boolean) || "";
+    }
+
+    if (typeof image === "object") {
+      return image.url || image.contentUrl || "";
+    }
+
+    return "";
   }
 
   function findRaEventObject(value, eventId, depth = 0, seen = new Set()) {
@@ -2390,8 +2556,8 @@
     }
   }
 
-  function isRaEventToday(detail, card, today) {
-    if (detail && detail.startDate && String(detail.startDate).slice(0, 10) === today) {
+  function isRaEventInDateWindow(detail, card, dateWindow) {
+    if (detail && detail.startDate && isoDateInRaDateWindow(String(detail.startDate).slice(0, 10), dateWindow)) {
       return true;
     }
 
@@ -2399,29 +2565,140 @@
       return false;
     }
 
-    return raDateHintMatchesToday(card.dateHint, today);
+    return raDateHintInDateWindow(card.dateHint, dateWindow);
   }
 
   function raDateHintMatchesToday(dateHint, today) {
-    const parts = today.split("-").map((part) => Number(part));
-    if (parts.length !== 3) {
-      return false;
-    }
+    return raDateHintInDateWindow(dateHint, getRaFilterDateWindow(today, "today"));
+  }
 
+  function raDateHintInDateWindow(dateHint, dateWindow) {
+    const hintDate = parseRaDateHintISO(dateHint, dateWindow);
+    return isoDateInRaDateWindow(hintDate, dateWindow);
+  }
+
+  function parseRaDateHintISO(dateHint, dateWindow) {
     const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
     const match = String(dateHint).toLowerCase().match(/\b(\d{1,2})\s+([a-z]{3})/);
     if (!match) {
-      return false;
+      return "";
     }
 
     const month = monthNames.indexOf(match[2]) + 1;
-    return Number(match[1]) === parts[2] && month === parts[1];
+    if (!month || !dateWindow || !dateWindow.startISO) {
+      return "";
+    }
+
+    const day = Number(match[1]);
+    const startYear = Number(dateWindow.startISO.slice(0, 4));
+    const candidates = [startYear, startYear - 1, startYear + 1]
+      .map((year) => formatISODate(year, month, day));
+    return candidates.find((candidate) => isoDateInRaDateWindow(candidate, dateWindow)) || candidates[0] || "";
+  }
+
+  function getRaFilterDateWindow(today, scope) {
+    if (scope === "today") {
+      return {
+        startISO: today,
+        endISO: today,
+        label: "today"
+      };
+    }
+
+    const date = parseISODateAsUTC(today);
+    if (!date) {
+      return {
+        startISO: today,
+        endISO: today,
+        label: "week"
+      };
+    }
+
+    const daysUntilSunday = (7 - date.getUTCDay()) % 7;
+    return {
+      startISO: today,
+      endISO: addDaysISO(today, daysUntilSunday),
+      label: daysUntilSunday === 0 ? "today" : "week"
+    };
+  }
+
+  function getRaDateWindowKey(dateWindow) {
+    return `${dateWindow && dateWindow.startISO || ""}:${dateWindow && dateWindow.endISO || ""}`;
+  }
+
+  function isoDateInRaDateWindow(isoDate, dateWindow) {
+    const value = String(isoDate || "").slice(0, 10);
+    return Boolean(value && dateWindow && value >= dateWindow.startISO && value <= dateWindow.endISO);
+  }
+
+  function addDaysISO(isoDate, days) {
+    const date = parseISODateAsUTC(isoDate);
+    if (!date) {
+      return isoDate;
+    }
+    date.setUTCDate(date.getUTCDate() + days);
+    return formatISODate(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+  }
+
+  function parseISODateAsUTC(isoDate) {
+    const match = String(isoDate || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) {
+      return null;
+    }
+
+    return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  }
+
+  function formatISODate(year, month, day) {
+    return [
+      String(year).padStart(4, "0"),
+      String(month).padStart(2, "0"),
+      String(day).padStart(2, "0")
+    ].join("-");
   }
 
   function getRaLgbtqSignals(text) {
     return RA_LGBTQ_PATTERNS
       .filter((entry) => entry.pattern.test(text || ""))
       .map((entry) => entry.label);
+  }
+
+  function getRaSignalEvidence(text, signals) {
+    const source = String(text || "").replace(/\s+/g, " ").trim();
+    if (!source || !Array.isArray(signals) || !signals.length) {
+      return [];
+    }
+
+    return signals
+      .map((signal) => {
+        const entry = RA_LGBTQ_PATTERNS.find((item) => item.label === signal);
+        const match = entry && source.match(entry.pattern);
+        if (!match || match.index === undefined) {
+          return null;
+        }
+
+        return {
+          label: signal,
+          match: match[0],
+          excerpt: makeRaEvidenceExcerpt(source, match.index, match[0].length)
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 4);
+  }
+
+  function makeRaEvidenceExcerpt(text, index, length) {
+    const radius = 96;
+    const start = Math.max(0, index - radius);
+    const end = Math.min(text.length, index + length + radius);
+    const prefix = start > 0 ? "..." : "";
+    const suffix = end < text.length ? "..." : "";
+    return `${prefix}${text.slice(start, end).trim()}${suffix}`;
+  }
+
+  function getRaCardImage(card) {
+    const image = card && card.querySelector && card.querySelector("img[src], picture img[src]");
+    return image ? image.currentSrc || image.src || image.getAttribute("src") || "" : "";
   }
 
   function getBerlinTodayISO(now) {
@@ -2485,6 +2762,103 @@
         outline: 2px solid rgba(20, 190, 120, 0.88) !important;
         outline-offset: 3px !important;
       }
+
+      #happy-browser-ra-proof {
+        position: fixed !important;
+        z-index: 2147483646 !important;
+        width: min(390px, calc(100vw - 24px)) !important;
+        max-height: min(520px, calc(100vh - 24px)) !important;
+        border: 1px solid rgba(160, 255, 206, 0.44) !important;
+        border-radius: 8px !important;
+        background: rgba(14, 18, 18, 0.94) !important;
+        box-shadow: 0 20px 56px rgba(0, 0, 0, 0.34) !important;
+        color: #f5fff9 !important;
+        display: none !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+        overflow: hidden !important;
+        pointer-events: auto !important;
+        backdrop-filter: blur(18px) !important;
+      }
+
+      #happy-browser-ra-proof[data-visible="true"] {
+        display: block !important;
+      }
+
+      .happy-browser-ra-proof__media {
+        width: 100% !important;
+        height: 128px !important;
+        background: linear-gradient(135deg, rgba(30, 64, 56, 0.92), rgba(60, 32, 72, 0.82)) !important;
+        object-fit: cover !important;
+      }
+
+      .happy-browser-ra-proof__body {
+        display: grid !important;
+        gap: 10px !important;
+        padding: 12px !important;
+      }
+
+      .happy-browser-ra-proof__meta {
+        color: rgba(245, 255, 249, 0.68) !important;
+        font-size: 11px !important;
+        font-weight: 680 !important;
+        letter-spacing: 0 !important;
+        text-transform: uppercase !important;
+      }
+
+      .happy-browser-ra-proof__title {
+        margin: 0 !important;
+        color: #ffffff !important;
+        font-size: 18px !important;
+        font-weight: 760 !important;
+        line-height: 1.18 !important;
+      }
+
+      .happy-browser-ra-proof__signals {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+      }
+
+      .happy-browser-ra-proof__signal {
+        border: 1px solid rgba(148, 236, 185, 0.52) !important;
+        border-radius: 999px !important;
+        background: rgba(31, 83, 60, 0.64) !important;
+        color: #effff5 !important;
+        cursor: pointer !important;
+        font: inherit !important;
+        font-size: 11px !important;
+        font-weight: 760 !important;
+        line-height: 1 !important;
+        padding: 7px 9px !important;
+      }
+
+      .happy-browser-ra-proof__signal[data-confirmed="true"] {
+        background: rgba(164, 255, 198, 0.92) !important;
+        border-color: rgba(218, 255, 226, 0.95) !important;
+        color: #10261b !important;
+      }
+
+      .happy-browser-ra-proof__excerpt {
+        margin: 0 !important;
+        border-left: 2px solid rgba(148, 236, 185, 0.62) !important;
+        padding: 0 0 0 9px !important;
+        color: rgba(245, 255, 249, 0.86) !important;
+        font-size: 12px !important;
+        line-height: 1.42 !important;
+      }
+
+      .happy-browser-ra-proof__excerpt mark {
+        border-radius: 4px !important;
+        background: rgba(255, 227, 116, 0.88) !important;
+        color: #1b1807 !important;
+        padding: 0 2px !important;
+      }
+
+      .happy-browser-ra-proof__footer {
+        color: rgba(245, 255, 249, 0.58) !important;
+        font-size: 11px !important;
+        line-height: 1.35 !important;
+      }
     `;
     document.documentElement.appendChild(style);
     setRaFilterPageMode();
@@ -2508,6 +2882,10 @@
       element.dataset.happyRaToday = String(result.today);
       element.dataset.happyRaSignals = result.signals.join(", ");
       element.dataset.happyRaSource = result.source || "";
+      if (result.href) {
+        element.dataset.happyRaHref = result.href;
+        state.raFilter.proofResults.set(result.href, result);
+      }
       element.setAttribute("title", getRaFilterCardTitle(result));
     }
   }
@@ -2535,8 +2913,213 @@
       delete element.dataset.happyRaToday;
       delete element.dataset.happyRaSignals;
       delete element.dataset.happyRaSource;
+      delete element.dataset.happyRaHref;
       element.removeAttribute("title");
     });
+    state.raFilter.proofResults.clear();
+    hideRaProofCard();
+  }
+
+  function onRaProofHoverStart(event) {
+    if (!isRaBerlinEventsPage() || !state.raFilter.enabled) {
+      return;
+    }
+
+    const card = getRaProofCardFromTarget(event.target);
+    if (!card) {
+      return;
+    }
+
+    const result = getRaProofResultForCard(card);
+    if (!result || !result.matched) {
+      return;
+    }
+
+    clearTimeout(state.raFilter.proofHideTimer);
+    state.raFilter.proofActiveElement = card;
+    showRaProofCard(card, result);
+  }
+
+  function onRaProofHoverEnd(event) {
+    const card = getRaProofCardFromTarget(event.target);
+    if (!card) {
+      return;
+    }
+
+    const related = event.relatedTarget;
+    if (related && (card.contains(related) || isInsideRaProofCard(related))) {
+      return;
+    }
+
+    scheduleRaProofHide();
+  }
+
+  function getRaProofCardFromTarget(target) {
+    return target && target.closest ? target.closest('[data-happy-ra-filter="match"]') : null;
+  }
+
+  function getRaProofResultForCard(card) {
+    const href = card && card.dataset ? card.dataset.happyRaHref : "";
+    return href ? state.raFilter.proofResults.get(href) : null;
+  }
+
+  function ensureRaProofCard() {
+    ensureRaFilterPageStyle();
+    if (state.raFilter.proofHost && state.raFilter.proofHost.isConnected) {
+      return state.raFilter.proofHost;
+    }
+
+    const host = document.createElement("aside");
+    host.id = "happy-browser-ra-proof";
+    host.dataset.visible = "false";
+    host.setAttribute("aria-label", "Happy Browser RA queer evidence");
+    host.addEventListener("mouseenter", () => clearTimeout(state.raFilter.proofHideTimer));
+    host.addEventListener("mouseleave", scheduleRaProofHide);
+    host.addEventListener("click", onRaProofClick);
+    document.documentElement.appendChild(host);
+    state.raFilter.proofHost = host;
+    return host;
+  }
+
+  function showRaProofCard(card, result) {
+    const host = ensureRaProofCard();
+    host.innerHTML = renderRaProofCard(result);
+    host.dataset.visible = "true";
+    positionRaProofCard(host, card);
+  }
+
+  function hideRaProofCard() {
+    clearTimeout(state.raFilter.proofHideTimer);
+    if (state.raFilter.proofHost) {
+      state.raFilter.proofHost.dataset.visible = "false";
+    }
+    state.raFilter.proofActiveElement = null;
+  }
+
+  function scheduleRaProofHide() {
+    clearTimeout(state.raFilter.proofHideTimer);
+    state.raFilter.proofHideTimer = window.setTimeout(hideRaProofCard, 180);
+  }
+
+  function isInsideRaProofCard(target) {
+    return Boolean(state.raFilter.proofHost && target && state.raFilter.proofHost.contains(target));
+  }
+
+  function positionRaProofCard(host, card) {
+    const rect = card.getBoundingClientRect();
+    const hostRect = host.getBoundingClientRect();
+    const width = hostRect.width || Math.min(390, Math.max(280, window.innerWidth - 24));
+    const height = hostRect.height || 360;
+    const gap = 12;
+    const rightSpace = window.innerWidth - rect.right;
+    const left = rightSpace >= width + gap
+      ? rect.right + gap
+      : Math.max(12, rect.left - width - gap);
+    const top = Math.min(
+      Math.max(12, rect.top),
+      Math.max(12, window.innerHeight - height - 12)
+    );
+    host.style.left = `${Math.round(left)}px`;
+    host.style.top = `${Math.round(top)}px`;
+  }
+
+  function renderRaProofCard(result) {
+    const confirmations = getRaSignalConfirmations();
+    const confirmed = confirmations[result.href] || {};
+    const image = result.image ? `<img class="happy-browser-ra-proof__media" src="${escapeHtml(result.image)}" alt="">` : '<div class="happy-browser-ra-proof__media" aria-hidden="true"></div>';
+    const chips = (result.signals || []).map((signal) => {
+      const isConfirmed = Boolean(confirmed[signal]);
+      return `<button type="button" class="happy-browser-ra-proof__signal" data-signal="${escapeHtml(signal)}" data-confirmed="${isConfirmed}" title="Confirm this signal">${escapeHtml(isConfirmed ? `OK ${signal}` : signal)}</button>`;
+    }).join("");
+    const excerpts = (result.evidence && result.evidence.length ? result.evidence : [{
+      label: "",
+      match: "",
+      excerpt: result.cardText || "Matched by RA detail metadata."
+    }]).map((item) => (
+      `<p class="happy-browser-ra-proof__excerpt">${formatRaEvidenceExcerptHtml(item)}</p>`
+    )).join("");
+
+    return [
+      image,
+      '<div class="happy-browser-ra-proof__body">',
+      `  <div class="happy-browser-ra-proof__meta">${escapeHtml([result.dateHint, result.source].filter(Boolean).join(" / "))}</div>`,
+      `  <h3 class="happy-browser-ra-proof__title">${escapeHtml(result.title || "RA event")}</h3>`,
+      `  <div class="happy-browser-ra-proof__signals">${chips}</div>`,
+      excerpts,
+      '  <div class="happy-browser-ra-proof__footer">Click a signal when the excerpt proves the queer match.</div>',
+      "</div>"
+    ].join("");
+  }
+
+  function formatRaEvidenceExcerptHtml(item) {
+    const excerpt = String(item && item.excerpt || "");
+    const match = String(item && item.match || "");
+    if (!match) {
+      return escapeHtml(excerpt);
+    }
+
+    const index = excerpt.toLowerCase().indexOf(match.toLowerCase());
+    if (index < 0) {
+      return escapeHtml(excerpt);
+    }
+
+    return [
+      escapeHtml(excerpt.slice(0, index)),
+      `<mark>${escapeHtml(excerpt.slice(index, index + match.length))}</mark>`,
+      escapeHtml(excerpt.slice(index + match.length))
+    ].join("");
+  }
+
+  function onRaProofClick(event) {
+    const button = event.target && event.target.closest ? event.target.closest(".happy-browser-ra-proof__signal") : null;
+    if (!button || !state.raFilter.proofActiveElement) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    const result = getRaProofResultForCard(state.raFilter.proofActiveElement);
+    const signal = button.dataset.signal || "";
+    if (!result || !result.href || !signal) {
+      return;
+    }
+
+    const confirmations = getRaSignalConfirmations();
+    confirmations[result.href] = confirmations[result.href] || {};
+    confirmations[result.href][signal] = {
+      confirmedAt: new Date().toISOString(),
+      title: result.title || "",
+      source: result.source || ""
+    };
+    saveRaSignalConfirmations(confirmations);
+    button.dataset.confirmed = "true";
+    button.textContent = `OK ${signal}`;
+    announce(`Confirmed ${signal}`);
+  }
+
+  function getRaSignalConfirmations() {
+    if (state.raFilter.confirmedSignals && Object.keys(state.raFilter.confirmedSignals).length) {
+      return state.raFilter.confirmedSignals;
+    }
+
+    try {
+      const raw = window.localStorage && window.localStorage.getItem(RA_SIGNAL_CONFIRMATIONS_STORAGE_KEY);
+      state.raFilter.confirmedSignals = raw ? JSON.parse(raw) || {} : {};
+    } catch (_error) {
+      state.raFilter.confirmedSignals = {};
+    }
+    return state.raFilter.confirmedSignals;
+  }
+
+  function saveRaSignalConfirmations(confirmations) {
+    state.raFilter.confirmedSignals = confirmations || {};
+    try {
+      if (window.localStorage) {
+        window.localStorage.setItem(RA_SIGNAL_CONFIRMATIONS_STORAGE_KEY, JSON.stringify(state.raFilter.confirmedSignals));
+      }
+    } catch (_error) {
+      // Confirmation is still reflected in-memory for this page.
+    }
   }
 
   function updateRaFilterUi() {
@@ -2597,7 +3180,7 @@
 
   function formatRaFilterButtonLabel(status) {
     if (!isRaBerlinEventsPage()) {
-      return "Filter RA events for today and LGBTQ signals";
+      return "Filter RA events for this week and LGBTQ signals";
     }
 
     if (!state.raFilter.enabled) {
@@ -2621,7 +3204,7 @@
       return `RA ${modeLabel}: ${status.matched || 0} matched; ${status.unknown} unknown`;
     }
 
-    return `RA ${modeLabel}: ${status.matched || 0} matched today`;
+    return `RA ${modeLabel}: ${status.matched || 0} matched this week`;
   }
 
   function formatRaFilterProgressLabel(status) {
@@ -2646,6 +3229,9 @@
     }
 
     if (status.state === "done") {
+      if ((status.total || 0) > 0 && (status.today || 0) === 0 && !status.unknown) {
+        return "none this week";
+      }
       const suffix = status.unknown ? ` ?${status.unknown}` : "";
       return `done ${status.matched || 0}/${status.today || 0}${suffix}`;
     }
@@ -2676,11 +3262,11 @@
     }
 
     const sources = status.sources ? `; ${formatRaSourceCounts(status.sources)}` : "";
-    return `${status.matched || 0}/${status.today || 0} today matched; ${status.hidden || 0} hidden; ${status.unknown || 0} unknown${sources}`;
+    return `${status.matched || 0}/${status.today || 0} this week matched; ${status.hidden || 0} hidden; ${status.unknown || 0} unknown${sources}`;
   }
 
   function formatRaSourceCounts(sources) {
-    return ["direct", "background", "frame", "fixture", "date-skip", "blocked", "unknown"]
+    return ["card", "direct", "background", "frame", "fixture", "date-skip", "blocked", "unknown"]
       .filter((key) => sources[key])
       .map((key) => `${key} ${sources[key]}`)
       .join("; ");

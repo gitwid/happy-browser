@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCE_DIR = ROOT / "src"
 SOURCE_MANIFEST = json.loads((ROOT / "manifest.json").read_text(encoding="utf-8"))
 DEV_MODE = os.environ.get("HAPPY_BROWSER_DEV") == "1"
-MANIFEST_NAME = "Happy Browser Dev" if DEV_MODE else "Happy Browser"
+MANIFEST_NAME = "Trillian" if DEV_MODE else "Fenchurch"
 TARGETS = [
     {
         "label": "Safari extension staging",
@@ -48,7 +48,21 @@ def sync_target(target):
     target_manifest["name"] = MANIFEST_NAME
     target_manifest["version"] = SOURCE_MANIFEST["version"]
     target_manifest["description"] = SOURCE_MANIFEST["description"]
+    target_manifest["permissions"] = SOURCE_MANIFEST["permissions"]
+    target_manifest["host_permissions"] = SOURCE_MANIFEST["host_permissions"]
     target_manifest["content_scripts"] = SOURCE_MANIFEST["content_scripts"]
+    target_manifest["commands"] = SOURCE_MANIFEST["commands"]
+    if "action" in SOURCE_MANIFEST:
+        target_manifest["action"] = {
+            **SOURCE_MANIFEST["action"],
+            "default_title": MANIFEST_NAME,
+        }
+    else:
+        target_manifest.pop("action", None)
+    if "options_ui" in SOURCE_MANIFEST:
+        target_manifest["options_ui"] = SOURCE_MANIFEST["options_ui"]
+    else:
+        target_manifest.pop("options_ui", None)
     if "background" in SOURCE_MANIFEST:
         target_manifest["background"] = SOURCE_MANIFEST["background"]
     else:
