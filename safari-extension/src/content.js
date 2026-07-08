@@ -28,6 +28,9 @@
     observerTimer: null,
     preNavigationSnapshot: null,
     attentionQueue: [],
+    linkTray: [],
+    linkTrayDragItem: null,
+    linkTrayCaptureArmed: false,
     raFilter: {
       enabled: false,
       running: false,
@@ -49,6 +52,9 @@
     versionLabel: getExtensionVersionLabel()
   };
   const ATTENTION_QUEUE_STORAGE_KEY = "happyAttentionQueue";
+  const LINK_TRAY_STORAGE_KEY = "happyLinkTray";
+  const LINK_TRAY_MAX_ITEMS = 4;
+  const LINK_TRAY_DRAG_MIME = "application/x-happy-browser-link-tray";
   const RA_SIGNAL_CONFIRMATIONS_STORAGE_KEY = "happyRaSignalConfirmations";
   const RA_FILTER_PAGE_STYLE_ID = "happy-browser-ra-filter-style";
   const RA_DETAIL_SCAN_CONCURRENCY = 1;
@@ -206,6 +212,254 @@
       outline: none;
     }
 
+    .happy-browser-link-tray {
+      position: fixed;
+      left: 14px;
+      top: 16px;
+      width: min(278px, calc(100vw - 28px));
+      max-height: calc(100vh - 32px);
+      padding: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 8px;
+      background: rgba(18, 24, 28, 0.46);
+      box-shadow: 0 18px 46px rgba(0, 0, 0, 0.24);
+      color: #f8fbff;
+      opacity: 0.68;
+      overflow: auto;
+      pointer-events: auto;
+      transform: translateX(calc(-100% + 42px));
+      transition: background 160ms ease, border-color 160ms ease, left 180ms ease, opacity 160ms ease, top 180ms ease, transform 180ms ease;
+      backdrop-filter: blur(18px);
+    }
+
+    .happy-browser-link-tray:hover,
+    .happy-browser-link-tray:focus-within,
+    #happy-browser-rail[data-link-tray-active="true"] .happy-browser-link-tray,
+    #happy-browser-rail[data-link-tray-count]:not([data-link-tray-count="0"]) .happy-browser-link-tray {
+      opacity: 0.98;
+      transform: translateX(0);
+    }
+
+    #happy-browser-rail[data-link-tray-active="true"] .happy-browser-link-tray {
+      background: rgba(20, 68, 54, 0.64);
+      border-color: rgba(112, 243, 178, 0.72);
+    }
+
+    #happy-browser-rail[data-idle="true"] .happy-browser-link-tray {
+      left: 8px;
+      top: 8px;
+      opacity: 0.16;
+      transform: translateX(calc(-100% + 22px));
+    }
+
+    #happy-browser-rail[data-idle="true"] .happy-browser-link-tray:hover,
+    #happy-browser-rail[data-idle="true"] .happy-browser-link-tray:focus-within,
+    #happy-browser-rail[data-idle="true"][data-link-tray-active="true"] .happy-browser-link-tray {
+      opacity: 0.98;
+      transform: translateX(0);
+    }
+
+    .happy-browser-link-tray__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0 0 8px;
+    }
+
+    .happy-browser-link-tray__title {
+      margin: 0;
+      color: rgba(248, 251, 255, 0.78);
+      font-size: 11px;
+      font-weight: 760;
+      letter-spacing: 0;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .happy-browser-link-tray__tools {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex: 0 0 auto;
+    }
+
+    .happy-browser-link-tray__capture,
+    .happy-browser-link-tray__clear {
+      width: 22px;
+      height: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.26);
+      border-radius: 50%;
+      background: rgba(18, 24, 28, 0.36);
+      color: rgba(248, 251, 255, 0.78);
+      cursor: pointer;
+      display: none;
+      flex: 0 0 auto;
+      font-size: 13px;
+      font-weight: 760;
+      line-height: 1;
+      padding: 0;
+      transition: background 140ms ease, border-color 140ms ease, color 140ms ease, opacity 140ms ease;
+    }
+
+    .happy-browser-link-tray__capture {
+      display: inline-grid;
+      place-items: center;
+    }
+
+    #happy-browser-rail[data-link-tray-capture="true"] .happy-browser-link-tray__capture,
+    .happy-browser-link-tray__capture:hover,
+    .happy-browser-link-tray__capture:focus-visible {
+      background: rgba(20, 68, 54, 0.74);
+      border-color: rgba(112, 243, 178, 0.82);
+      color: #ffffff;
+      outline: none;
+    }
+
+    .happy-browser-link-tray__clear:hover,
+    .happy-browser-link-tray__clear:focus-visible {
+      background: rgba(70, 24, 24, 0.74);
+      border-color: rgba(255, 132, 132, 0.82);
+      color: #ffffff;
+      outline: none;
+    }
+
+    #happy-browser-rail[data-link-tray-count]:not([data-link-tray-count="0"]) .happy-browser-link-tray__clear {
+      display: inline-grid;
+      place-items: center;
+    }
+
+    .happy-browser-link-tray__list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .happy-browser-link-tray__empty {
+      min-height: 76px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed rgba(255, 255, 255, 0.28);
+      border-radius: 8px;
+      color: rgba(248, 251, 255, 0.66);
+      font-size: 12px;
+      font-weight: 680;
+      line-height: 1.2;
+      text-align: center;
+    }
+
+    .happy-browser-link-tray__item {
+      width: 100%;
+      min-height: 88px;
+      padding: 0;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      color: inherit;
+      cursor: pointer;
+      display: block;
+      overflow: hidden;
+      text-align: left;
+      transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+    }
+
+    .happy-browser-link-tray__item:hover,
+    .happy-browser-link-tray__item:focus-visible {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.52);
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .happy-browser-link-tray__item[data-review="true"] {
+      border-color: rgba(255, 202, 98, 0.74);
+    }
+
+    .happy-browser-link-tray__preview {
+      height: 88px;
+      padding: 8px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.94);
+      color: #24292f;
+      line-height: 1.25;
+    }
+
+    .happy-browser-link-tray__preview * {
+      box-sizing: border-box;
+      max-width: 100%;
+      pointer-events: none;
+    }
+
+    .happy-browser-link-tray__snapshot {
+      max-height: 72px;
+      overflow: hidden;
+    }
+
+    .happy-browser-link-tray__fallback-title {
+      margin: 0 0 5px;
+      color: #24292f;
+      font-size: 13px;
+      font-weight: 720;
+      line-height: 1.18;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .happy-browser-link-tray__fallback-url,
+    .happy-browser-link-tray__fallback-snippet {
+      margin: 0;
+      color: #57606a;
+      font-size: 11px;
+      line-height: 1.24;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .happy-browser-link-tray__fallback-snippet {
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .happy-browser-link-tray__review {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 7px;
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(18, 24, 28, 0.28);
+    }
+
+    .happy-browser-link-tray__review-status {
+      grid-column: 1 / -1;
+      color: rgba(248, 251, 255, 0.74);
+      font-size: 10px;
+      font-weight: 720;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+    }
+
+    .happy-browser-link-tray__review button {
+      min-height: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 8px;
+      color: #ffffff;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .happy-browser-link-tray__accept {
+      background: rgba(20, 68, 54, 0.78);
+    }
+
+    .happy-browser-link-tray__reject {
+      background: rgba(70, 24, 24, 0.78);
+    }
+
     .happy-browser-ra-filter-button {
       position: fixed;
       top: calc(var(--happy-toggle-top, 16px) + 44px);
@@ -352,6 +606,7 @@
     #happy-browser-rail[data-happy-enabled="false"] .happy-browser-ra-filter-button,
     #happy-browser-rail[data-happy-enabled="false"] .happy-browser-ra-mode,
     #happy-browser-rail[data-happy-enabled="false"] .happy-browser-ra-progress,
+    #happy-browser-rail[data-happy-enabled="false"] .happy-browser-link-tray,
     #happy-browser-rail[data-happy-enabled="false"] .happy-browser-status,
     #happy-browser-rail[data-happy-enabled="false"] .happy-browser-inspector {
       display: none;
@@ -494,6 +749,12 @@
       .happy-browser-button[data-direction="next"] {
         right: 8px;
       }
+
+      .happy-browser-link-tray {
+        left: 8px;
+        top: 8px;
+        width: min(248px, calc(100vw - 16px));
+      }
     }
   `;
 
@@ -518,12 +779,18 @@
       toggleRaFilter,
       queueFocusedPost,
       getAttentionQueue: () => state.attentionQueue,
+      queueLinkTrayItem,
+      clearLinkTray,
+      getLinkTrayItemFromElement,
+      getLinkTrayItemFromAnchor,
+      getLinkTrayItems: () => state.linkTray,
       getVisibleMediaSignature
     };
   }
 
   loadSettings();
   loadAttentionQueue();
+  loadLinkTray();
   createRail();
   setRailState("scanning", "Scanning");
   scheduleAnalyze(80);
@@ -557,6 +824,22 @@
       const queue = settings && Array.isArray(settings[ATTENTION_QUEUE_STORAGE_KEY]) ? settings[ATTENTION_QUEUE_STORAGE_KEY] : [];
       state.attentionQueue = queue.filter((item) => item && item.key).slice(0, 100);
       applyQueueState();
+      updateInspector();
+    });
+  }
+
+  function loadLinkTray() {
+    const localStorageArea = chrome.storage && chrome.storage.local;
+    if (!localStorageArea || typeof localStorageArea.get !== "function") {
+      state.linkTray = [];
+      applyLinkTrayState();
+      return;
+    }
+
+    localStorageArea.get({ [LINK_TRAY_STORAGE_KEY]: [] }, (settings) => {
+      const tray = settings && Array.isArray(settings[LINK_TRAY_STORAGE_KEY]) ? settings[LINK_TRAY_STORAGE_KEY] : [];
+      state.linkTray = tray.map(normalizeLinkTrayItem).filter(Boolean).slice(0, LINK_TRAY_MAX_ITEMS);
+      applyLinkTrayState();
       updateInspector();
     });
   }
@@ -597,6 +880,7 @@
     const next = makeRailButton("next", "›", "Happy next");
     const toggle = makeToggleButton();
     const queue = makeQueueButton();
+    const linkTray = makeLinkTray();
     const raFilter = makeRaFilterButton();
     const raMode = document.createElement("div");
     raMode.className = "happy-browser-ra-mode";
@@ -618,7 +902,7 @@
     inspector.setAttribute("aria-label", "Happy Browser local inspection");
     inspector.innerHTML = "<h2>Local inspection</h2><dl><dt>State</dt><dd>Scanning</dd></dl>";
 
-    rail.append(previous, next, toggle, queue, raFilter, raMode, raProgress, version, status, inspector);
+    rail.append(previous, next, toggle, queue, linkTray, raFilter, raMode, raProgress, version, status, inspector);
     shadow.append(style, rail);
     document.documentElement.appendChild(host);
     state.railHost = host;
@@ -629,6 +913,7 @@
     applyDebugState();
     applyRailEnabledState();
     applyQueueState();
+    applyLinkTrayState();
     updateRaFilterUi();
   }
 
@@ -664,6 +949,44 @@
       queueFocusedPost();
     });
     return button;
+  }
+
+  function makeLinkTray() {
+    const tray = document.createElement("section");
+    tray.className = "happy-browser-link-tray";
+    tray.setAttribute("aria-label", "Tray");
+    tray.innerHTML = [
+      '<div class="happy-browser-link-tray__header">',
+      '<h2 class="happy-browser-link-tray__title">Tray</h2>',
+      '<div class="happy-browser-link-tray__tools">',
+      '<button type="button" class="happy-browser-link-tray__capture" aria-label="Photograph page element" title="Photograph page element">+</button>',
+      '<button type="button" class="happy-browser-link-tray__clear" aria-label="Clear tray" title="Clear tray">x</button>',
+      '</div>',
+      '</div>',
+      '<div class="happy-browser-link-tray__list"></div>'
+    ].join("");
+
+    const capture = tray.querySelector(".happy-browser-link-tray__capture");
+    if (capture) {
+      capture.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleLinkTrayCapture();
+      });
+    }
+    const clear = tray.querySelector(".happy-browser-link-tray__clear");
+    if (clear) {
+      clear.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        clearLinkTray();
+      });
+    }
+    tray.addEventListener("dragenter", onLinkTrayDragEnter);
+    tray.addEventListener("dragover", onLinkTrayDragOver);
+    tray.addEventListener("dragleave", onLinkTrayDragLeave);
+    tray.addEventListener("drop", onLinkTrayDrop);
+    return tray;
   }
 
   function makeRaFilterButton() {
@@ -880,7 +1203,10 @@
     document.addEventListener("mouseover", onRaProofHoverStart, true);
     document.addEventListener("mouseout", onRaProofHoverEnd, true);
     document.addEventListener("pointermove", onMouseActivity, true);
+    document.addEventListener("dragstart", onPageDragStart, true);
+    document.addEventListener("dragend", onPageDragEnd, true);
     document.addEventListener("wheel", onWheel, { passive: true, capture: true });
+    document.addEventListener("click", onLinkTrayCaptureClick, true);
     document.addEventListener("click", () => scheduleAnalyze(320), true);
     document.addEventListener("scroll", () => scheduleAnalyze(120), true);
     window.addEventListener("popstate", () => scheduleAnalyze(120));
@@ -1547,6 +1873,852 @@
     }
   }
 
+  function onPageDragStart(event) {
+    const target = event.target && event.target.nodeType === Node.ELEMENT_NODE ? event.target : null;
+    const anchor = target && target.closest ? target.closest("a[href]") : null;
+    if (!anchor || state.railHost && state.railHost.contains(anchor)) {
+      return;
+    }
+
+    const item = getLinkTrayItemFromAnchor(anchor);
+    if (!item) {
+      return;
+    }
+
+    state.linkTrayDragItem = item;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "copyLink";
+      try {
+        event.dataTransfer.setData(LINK_TRAY_DRAG_MIME, JSON.stringify(item));
+        event.dataTransfer.setData("text/uri-list", item.href);
+        event.dataTransfer.setData("text/plain", item.href);
+      } catch (_error) {
+        // Some browsers limit custom drag payloads; the in-memory item still covers same-page drops.
+      }
+    }
+  }
+
+  function onPageDragEnd() {
+    state.linkTrayDragItem = null;
+    setLinkTrayActive(false);
+  }
+
+  function onLinkTrayDragEnter(event) {
+    if (!canAcceptLinkTrayDrop(event)) {
+      return;
+    }
+
+    event.preventDefault();
+    setLinkTrayActive(true);
+  }
+
+  function onLinkTrayDragOver(event) {
+    if (!canAcceptLinkTrayDrop(event)) {
+      return;
+    }
+
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "copy";
+    }
+    setLinkTrayActive(true);
+  }
+
+  function onLinkTrayDragLeave(event) {
+    if (event.currentTarget && event.relatedTarget && event.currentTarget.contains(event.relatedTarget)) {
+      return;
+    }
+
+    setLinkTrayActive(false);
+  }
+
+  function onLinkTrayDrop(event) {
+    if (!canAcceptLinkTrayDrop(event)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    setLinkTrayActive(false);
+    const item = getLinkTrayDropItem(event);
+    state.linkTrayDragItem = null;
+    if (!item) {
+      announce("No link found");
+      return;
+    }
+
+    queueLinkTrayItem(item);
+  }
+
+  function toggleLinkTrayCapture() {
+    setLinkTrayCaptureArmed(!state.linkTrayCaptureArmed);
+    announce(state.linkTrayCaptureArmed ? "Click to photograph" : "Photograph off");
+  }
+
+  function setLinkTrayCaptureArmed(armed) {
+    state.linkTrayCaptureArmed = Boolean(armed);
+    if (state.rail) {
+      state.rail.dataset.linkTrayCapture = String(state.linkTrayCaptureArmed);
+    }
+    setLinkTrayActive(state.linkTrayCaptureArmed);
+  }
+
+  function onLinkTrayCaptureClick(event) {
+    if (!state.linkTrayCaptureArmed) {
+      return;
+    }
+
+    const target = event.target && event.target.nodeType === Node.ELEMENT_NODE ? event.target : null;
+    if (!target || state.railHost && state.railHost.contains(target)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    setLinkTrayCaptureArmed(false);
+
+    const item = getLinkTrayItemFromElement(target);
+    if (!item) {
+      announce("Nothing to photograph");
+      return;
+    }
+
+    queueLinkTrayItem(item);
+  }
+
+  function canAcceptLinkTrayDrop(event) {
+    if (state.linkTrayDragItem) {
+      return true;
+    }
+
+    const types = event.dataTransfer && event.dataTransfer.types ? Array.from(event.dataTransfer.types) : [];
+    return types.includes(LINK_TRAY_DRAG_MIME) || types.includes("text/uri-list") || types.includes("text/plain");
+  }
+
+  function getLinkTrayDropItem(event) {
+    const fromDrag = readLinkTrayDragPayload(event);
+    if (fromDrag) {
+      return fromDrag;
+    }
+
+    if (state.linkTrayDragItem) {
+      return state.linkTrayDragItem;
+    }
+
+    const href = readDroppedHref(event);
+    if (!href) {
+      return null;
+    }
+
+    const anchor = findAnchorByHref(href);
+    return anchor ? getLinkTrayItemFromAnchor(anchor) : makeLinkTrayFallbackItem(href);
+  }
+
+  function readLinkTrayDragPayload(event) {
+    if (!event.dataTransfer || typeof event.dataTransfer.getData !== "function") {
+      return null;
+    }
+
+    try {
+      const raw = event.dataTransfer.getData(LINK_TRAY_DRAG_MIME);
+      if (!raw) {
+        return null;
+      }
+      const parsed = JSON.parse(raw);
+      return parsed && parsed.href ? parsed : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function readDroppedHref(event) {
+    if (!event.dataTransfer || typeof event.dataTransfer.getData !== "function") {
+      return "";
+    }
+
+    const uriList = event.dataTransfer.getData("text/uri-list");
+    const uri = String(uriList || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line && !line.startsWith("#"));
+    const raw = uri || event.dataTransfer.getData("text/plain");
+    return normalizeLinkTrayHref(raw);
+  }
+
+  function findAnchorByHref(href) {
+    const normalized = normalizeLinkTrayHref(href);
+    if (!normalized) {
+      return null;
+    }
+
+    return Array.from(document.querySelectorAll("a[href]"))
+      .find((anchor) => normalizeLinkTrayHref(anchor.getAttribute("href")) === normalized) || null;
+  }
+
+  function queueLinkTrayItem(input) {
+    const item = input && input.nodeType === Node.ELEMENT_NODE
+      ? getLinkTrayItemFromAnchor(input)
+      : normalizeLinkTrayItem(input);
+    if (!item) {
+      return Promise.resolve(null);
+    }
+
+    state.linkTray = [
+      item,
+      ...state.linkTray.filter((queued) => queued.key !== item.key)
+    ].slice(0, LINK_TRAY_MAX_ITEMS);
+    applyLinkTrayState();
+    updateInspector();
+
+    return persistLinkTray().then(() => {
+      announce(`Tray ${state.linkTray.length}/${LINK_TRAY_MAX_ITEMS}`);
+      return item;
+    });
+  }
+
+  function clearLinkTray() {
+    if (!state.linkTray.length) {
+      return Promise.resolve([]);
+    }
+
+    state.linkTray = [];
+    applyLinkTrayState();
+    updateInspector();
+
+    return persistLinkTray().then(() => {
+      announce("Tray cleared");
+      return state.linkTray;
+    });
+  }
+
+  function persistLinkTray() {
+    const localStorageArea = chrome.storage && chrome.storage.local;
+    if (!localStorageArea || typeof localStorageArea.set !== "function") {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      localStorageArea.set({ [LINK_TRAY_STORAGE_KEY]: state.linkTray }, resolve);
+    });
+  }
+
+  function applyLinkTrayState() {
+    if (!state.rail) {
+      return;
+    }
+
+    state.rail.dataset.linkTrayCount = String(state.linkTray.length);
+    const list = state.rail.querySelector(".happy-browser-link-tray__list");
+    if (!list) {
+      return;
+    }
+
+    list.textContent = "";
+    if (!state.linkTray.length) {
+      const empty = document.createElement("div");
+      empty.className = "happy-browser-link-tray__empty";
+      empty.textContent = "Drop links";
+      list.appendChild(empty);
+      return;
+    }
+
+    state.linkTray.forEach((item) => {
+      list.appendChild(renderLinkTrayEntry(item));
+    });
+  }
+
+  function renderLinkTrayEntry(item) {
+    const entry = document.createElement("div");
+    entry.className = "happy-browser-link-tray__item";
+    entry.dataset.review = String(item.review === "pending");
+    entry.setAttribute("role", item.type === "dom" ? "button" : "link");
+    entry.setAttribute("tabindex", "0");
+    entry.setAttribute("aria-label", item.title ? `Open ${item.title}` : "Open tray item");
+    entry.setAttribute("title", item.href || item.selector || item.key);
+    entry.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openLinkTrayItem(item, event);
+    });
+    entry.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+
+      event.preventDefault();
+      openLinkTrayItem(item, event);
+    });
+
+    const preview = document.createElement("div");
+    preview.className = "happy-browser-link-tray__preview";
+    if (item.snapshotHtml) {
+      preview.innerHTML = item.snapshotHtml;
+    } else {
+      preview.innerHTML = renderLinkTrayFallback(item);
+    }
+    entry.appendChild(preview);
+
+    if (item.review === "pending") {
+      entry.appendChild(renderLinkTrayReview(item));
+    }
+    return entry;
+  }
+
+  function renderLinkTrayReview(item) {
+    const review = document.createElement("div");
+    review.className = "happy-browser-link-tray__review";
+
+    const status = document.createElement("div");
+    status.className = "happy-browser-link-tray__review-status";
+    status.textContent = item.selfTest && item.selfTest.passed ? "Self-test passed" : `Self-test: ${item.selfTest && item.selfTest.label || "needs review"}`;
+
+    const accept = document.createElement("button");
+    accept.type = "button";
+    accept.className = "happy-browser-link-tray__accept";
+    accept.textContent = "✓";
+    accept.setAttribute("aria-label", "Accept photographed item");
+    accept.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      acceptLinkTrayItem(item.key);
+    });
+
+    const reject = document.createElement("button");
+    reject.type = "button";
+    reject.className = "happy-browser-link-tray__reject";
+    reject.textContent = "x";
+    reject.setAttribute("aria-label", "Reject photographed item");
+    reject.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      rejectLinkTrayItem(item.key);
+    });
+
+    review.append(status, accept, reject);
+    return review;
+  }
+
+  function openLinkTrayItem(item, event) {
+    if (!item || item.review === "pending") {
+      return;
+    }
+
+    if (item.type === "dom") {
+      clickLinkTrayDomItem(item);
+      return;
+    }
+
+    if (!item.href) {
+      return;
+    }
+
+    if (event && (event.metaKey || event.ctrlKey)) {
+      window.open(item.href, "_blank", "noopener");
+      return;
+    }
+
+    window.location.href = item.href;
+  }
+
+  function acceptLinkTrayItem(key) {
+    state.linkTray = state.linkTray.map((item) => item.key === key ? {
+      ...item,
+      review: "accepted"
+    } : item);
+    applyLinkTrayState();
+    updateInspector();
+    return persistLinkTray().then(() => announce("Accepted"));
+  }
+
+  function rejectLinkTrayItem(key) {
+    state.linkTray = state.linkTray.filter((item) => item.key !== key);
+    applyLinkTrayState();
+    updateInspector();
+    return persistLinkTray().then(() => announce("Rejected"));
+  }
+
+  function clickLinkTrayDomItem(item) {
+    const element = item.selector ? document.querySelector(item.selector) : null;
+    if (!element) {
+      announce("Target missing");
+      return;
+    }
+
+    element.dispatchEvent(new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    }));
+  }
+
+  function setLinkTrayActive(active) {
+    if (state.rail) {
+      state.rail.dataset.linkTrayActive = String(Boolean(active));
+    }
+  }
+
+  function getLinkTrayItemFromAnchor(anchor) {
+    if (!anchor || !anchor.getAttribute) {
+      return null;
+    }
+
+    const href = normalizeLinkTrayHref(anchor.getAttribute("href"));
+    if (!href) {
+      return null;
+    }
+
+    const context = getLinkTrayContextElement(anchor);
+    const title = getLinkTrayTitle(anchor, context);
+    const snippet = getLinkTraySnippet(anchor, context);
+
+    return normalizeLinkTrayItem({
+      type: "link",
+      href,
+      sourceUrl: window.location.href,
+      sourceTitle: document.title || "",
+      title,
+      snippet,
+      snapshotHtml: context ? buildLinkTraySnapshotHtml(context, anchor) : "",
+      capturedAt: new Date().toISOString()
+    });
+  }
+
+  function getLinkTrayItemFromElement(element) {
+    const target = getLinkTrayActionElement(element);
+    if (!target) {
+      return null;
+    }
+
+    const anchor = target.closest && target.closest("a[href]");
+    if (anchor) {
+      const linkItem = getLinkTrayItemFromAnchor(anchor);
+      if (linkItem) {
+        return {
+          ...linkItem,
+          review: "pending",
+          selfTest: selfTestLinkTrayItem(linkItem)
+        };
+      }
+    }
+
+    const selector = getStableElementSelector(target);
+    if (!selector) {
+      return null;
+    }
+
+    const context = getLinkTrayContextElement(target);
+    const title = getLinkTrayTitle(target, context);
+    const item = normalizeLinkTrayItem({
+      type: "dom",
+      selector,
+      sourceUrl: window.location.href,
+      sourceTitle: document.title || "",
+      title,
+      snippet: getLinkTraySnippet(target, context),
+      snapshotHtml: context ? buildLinkTraySnapshotHtml(context, target) : "",
+      review: "pending",
+      capturedAt: new Date().toISOString()
+    });
+    if (!item) {
+      return null;
+    }
+
+    return {
+      ...item,
+      selfTest: selfTestLinkTrayItem(item)
+    };
+  }
+
+  function normalizeLinkTrayItem(item) {
+    if (!item) {
+      return null;
+    }
+
+    const type = item.type === "dom" || item.selector && !item.href ? "dom" : "link";
+    const href = normalizeLinkTrayHref(item.href || "");
+    const selector = String(item.selector || "").trim().slice(0, 420);
+    if (type === "link" && !href) {
+      return null;
+    }
+    if (type === "dom" && !selector) {
+      return null;
+    }
+
+    const sourceUrl = normalizeLinkTrayHref(item.sourceUrl || window.location.href) || window.location.href;
+    const title = String(item.title || "").replace(/\s+/g, " ").trim().slice(0, 180) || href || selector;
+    const key = String(item.key || (href ? `link:${href}` : `dom:${sourceUrl.split("#")[0]}:${selector}:${title}`)).slice(0, 640);
+
+    return {
+      key,
+      type,
+      href,
+      selector,
+      action: type === "dom" ? "click" : "open",
+      sourceTitle: String(item.sourceTitle || document.title || "").slice(0, 180),
+      sourceUrl,
+      title,
+      snippet: String(item.snippet || "").replace(/\s+/g, " ").trim().slice(0, 260),
+      snapshotHtml: String(item.snapshotHtml || "").slice(0, 16000),
+      review: item.review === "pending" ? "pending" : item.review === "accepted" ? "accepted" : "",
+      selfTest: item.selfTest && typeof item.selfTest === "object" ? {
+        passed: Boolean(item.selfTest.passed),
+        label: String(item.selfTest.label || "").slice(0, 140)
+      } : null,
+      capturedAt: item.capturedAt || new Date().toISOString()
+    };
+  }
+
+  function makeLinkTrayFallbackItem(href) {
+    const normalized = normalizeLinkTrayHref(href);
+    if (!normalized) {
+      return null;
+    }
+
+    return normalizeLinkTrayItem({
+      type: "link",
+      href: normalized,
+      sourceUrl: window.location.href,
+      sourceTitle: document.title || "",
+      title: normalized,
+      snippet: "",
+      snapshotHtml: "",
+      capturedAt: new Date().toISOString()
+    });
+  }
+
+  function getLinkTrayActionElement(element) {
+    if (!element || state.railHost && state.railHost.contains(element)) {
+      return null;
+    }
+
+    const actionable = element.closest([
+      "a[href]",
+      "button",
+      "summary",
+      "input[type='button']",
+      "input[type='submit']",
+      "input[type='reset']",
+      "[role='button']",
+      "[role='link']",
+      "[tabindex]:not([tabindex='-1'])"
+    ].join(","));
+    return actionable || element;
+  }
+
+  function selfTestLinkTrayItem(item) {
+    if (!item) {
+      return { passed: false, label: "missing item" };
+    }
+
+    if (item.type === "link") {
+      return item.href ? { passed: true, label: "link captured" } : { passed: false, label: "missing link" };
+    }
+
+    const element = item.selector ? document.querySelector(item.selector) : null;
+    if (!element) {
+      return { passed: false, label: "target not found" };
+    }
+
+    const rect = element.getBoundingClientRect();
+    const style = window.getComputedStyle(element);
+    const visible = rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0";
+    return visible ? { passed: true, label: "target visible" } : { passed: false, label: "target hidden" };
+  }
+
+  function getStableElementSelector(element) {
+    if (!element || element.nodeType !== Node.ELEMENT_NODE || element === document.documentElement || element === document.body) {
+      return "";
+    }
+
+    const testId = element.getAttribute("data-testid") || element.getAttribute("data-test-id") || element.getAttribute("data-pw-test-id");
+    if (testId) {
+      const selector = `${element.tagName.toLowerCase()}[${testId === element.getAttribute("data-testid") ? "data-testid" : testId === element.getAttribute("data-test-id") ? "data-test-id" : "data-pw-test-id"}="${cssEscape(testId)}"]`;
+      if (document.querySelectorAll(selector).length === 1) {
+        return selector;
+      }
+    }
+
+    if (element.id) {
+      const selector = `#${cssEscape(element.id)}`;
+      if (document.querySelectorAll(selector).length === 1) {
+        return selector;
+      }
+    }
+
+    const parts = [];
+    let node = element;
+    while (node && node.nodeType === Node.ELEMENT_NODE && node !== document.body && node !== document.documentElement && parts.length < 5) {
+      parts.unshift(getElementSelectorPart(node));
+      const selector = parts.join(" > ");
+      try {
+        if (document.querySelectorAll(selector).length === 1) {
+          return selector;
+        }
+      } catch (_error) {
+        return "";
+      }
+      node = node.parentElement;
+    }
+
+    return parts.join(" > ");
+  }
+
+  function getElementSelectorPart(element) {
+    const tag = element.tagName.toLowerCase();
+    const role = element.getAttribute("role");
+    const classes = Array.from(element.classList || [])
+      .filter((className) => /^[a-z0-9_-]{2,40}$/i.test(className))
+      .slice(0, 2)
+      .map((className) => `.${cssEscape(className)}`)
+      .join("");
+    const base = `${tag}${role ? `[role="${cssEscape(role)}"]` : ""}${classes}`;
+    const parent = element.parentElement;
+    if (!parent) {
+      return base;
+    }
+
+    const siblings = Array.from(parent.children).filter((child) => child.tagName === element.tagName);
+    if (siblings.length <= 1) {
+      return base;
+    }
+
+    return `${base}:nth-of-type(${siblings.indexOf(element) + 1})`;
+  }
+
+  function cssEscape(value) {
+    if (window.CSS && typeof window.CSS.escape === "function") {
+      return window.CSS.escape(String(value));
+    }
+
+    return String(value).replace(/["\\]/g, "\\$&");
+  }
+
+  function normalizeLinkTrayHref(href) {
+    try {
+      const url = new URL(String(href || "").trim(), window.location.href);
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        return "";
+      }
+      return url.href;
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function getLinkTrayContextElement(anchor) {
+    const preferred = anchor.closest([
+      ".Box-row",
+      "[data-testid*='pull']",
+      "[data-testid*='issue']",
+      "[role='listitem']",
+      "[role='region']",
+      "article",
+      "section",
+      "form",
+      "dialog",
+      "li",
+      "tr"
+    ].join(","));
+    if (isLinkTrayContextCandidate(preferred, anchor)) {
+      return preferred;
+    }
+
+    let element = anchor;
+    for (let depth = 0; element && depth < 7; depth += 1) {
+      if (isLinkTrayContextCandidate(element, anchor)) {
+        return element;
+      }
+      element = element.parentElement;
+    }
+
+    return anchor;
+  }
+
+  function isLinkTrayContextCandidate(element, anchor) {
+    if (!element || element === document.body || element === document.documentElement) {
+      return false;
+    }
+
+    if (state.railHost && state.railHost.contains(element)) {
+      return false;
+    }
+
+    if (anchor && !element.contains(anchor)) {
+      return false;
+    }
+
+    const rect = element.getBoundingClientRect();
+    const text = getCompactText(element);
+    return rect.width >= 80 && rect.height >= 20 && text.length >= 2 && text.length <= 1200;
+  }
+
+  function getLinkTrayTitle(anchor, context) {
+    const anchorText = getCompactText(anchor);
+    if (anchorText) {
+      return anchorText;
+    }
+
+    const heading = context && context.querySelector && context.querySelector("h1, h2, h3, [role='heading']");
+    return getCompactText(heading)
+      || anchor.getAttribute("aria-label")
+      || anchor.getAttribute("title")
+      || anchor.getAttribute("value")
+      || anchor.href
+      || anchor.tagName.toLowerCase();
+  }
+
+  function getLinkTraySnippet(anchor, context) {
+    const text = getCompactText(context || anchor);
+    const title = getCompactText(anchor);
+    if (title && text.startsWith(title)) {
+      return text.slice(title.length).trim().slice(0, 260);
+    }
+
+    return text.slice(0, 260);
+  }
+
+  function buildLinkTraySnapshotHtml(context, anchor) {
+    try {
+      const clone = context.cloneNode(true);
+      prepareLinkTraySnapshotNode(context, clone, anchor, 0);
+      const html = clone.outerHTML || "";
+      return html.length <= 16000 ? html : renderLinkTrayFallback({
+        type: anchor && anchor.matches && anchor.matches("a[href]") ? "link" : "dom",
+        href: normalizeLinkTrayHref(anchor.getAttribute("href")),
+        selector: getStableElementSelector(anchor),
+        title: getLinkTrayTitle(anchor, context),
+        snippet: getLinkTraySnippet(anchor, context)
+      });
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function prepareLinkTraySnapshotNode(source, clone, anchor, depth) {
+    if (!source || !clone || clone.nodeType !== Node.ELEMENT_NODE) {
+      return;
+    }
+
+    if (shouldRemoveLinkTraySnapshotNode(clone)) {
+      clone.remove();
+      return;
+    }
+
+    sanitizeLinkTraySnapshotAttributes(clone);
+    inlineLinkTraySnapshotStyle(source, clone, source === anchor || source.contains(anchor));
+
+    const sourceChildren = Array.from(source.children || []);
+    const cloneChildren = Array.from(clone.children || []);
+    cloneChildren.forEach((child, index) => {
+      if (depth > 7 || index > 24) {
+        child.remove();
+        return;
+      }
+
+      prepareLinkTraySnapshotNode(sourceChildren[index], child, anchor, depth + 1);
+    });
+  }
+
+  function shouldRemoveLinkTraySnapshotNode(element) {
+    return /^(script|style|link|iframe|object|embed|canvas|video|audio|template)$/i.test(element.tagName || "");
+  }
+
+  function sanitizeLinkTraySnapshotAttributes(element) {
+    Array.from(element.attributes || []).forEach((attribute) => {
+      const name = attribute.name.toLowerCase();
+      if (name.startsWith("on") || ["href", "target", "download", "contenteditable", "tabindex", "id"].includes(name)) {
+        element.removeAttribute(attribute.name);
+      }
+    });
+  }
+
+  function inlineLinkTraySnapshotStyle(source, clone, containsAnchor) {
+    const computed = window.getComputedStyle(source);
+    const color = computed.color && computed.color !== "rgba(0, 0, 0, 0)" ? computed.color : "#24292f";
+    const background = computed.backgroundColor && computed.backgroundColor !== "rgba(0, 0, 0, 0)" ? computed.backgroundColor : "transparent";
+    const styles = {
+      display: safeSnapshotDisplay(computed.display),
+      "align-items": computed.alignItems,
+      "justify-content": computed.justifyContent,
+      gap: computed.gap,
+      padding: computed.padding,
+      margin: computed.margin,
+      color,
+      "background-color": background,
+      "border-color": computed.borderColor,
+      "border-style": computed.borderStyle,
+      "border-width": computed.borderWidth,
+      "border-radius": computed.borderRadius,
+      "font-family": computed.fontFamily,
+      "font-size": clampSnapshotFontSize(computed.fontSize),
+      "font-weight": computed.fontWeight,
+      "line-height": computed.lineHeight,
+      "text-decoration": computed.textDecorationLine === "none" ? "none" : computed.textDecoration,
+      "white-space": computed.whiteSpace === "nowrap" ? "nowrap" : "normal",
+      overflow: "hidden",
+      "text-overflow": "ellipsis",
+      position: "static",
+      transform: "none",
+      "box-shadow": "none"
+    };
+
+    if (containsAnchor) {
+      styles.outline = "0";
+    }
+
+    clone.setAttribute("style", Object.entries(styles)
+      .filter(([_property, value]) => value && value !== "normal normal normal" && value !== "auto")
+      .map(([property, value]) => `${property}: ${value}`)
+      .join("; "));
+  }
+
+  function safeSnapshotDisplay(display) {
+    if (["flex", "inline-flex", "grid", "inline-grid", "block", "inline", "inline-block", "table-row", "table-cell"].includes(display)) {
+      return display;
+    }
+
+    return "block";
+  }
+
+  function clampSnapshotFontSize(fontSize) {
+    const value = parseFloat(fontSize);
+    if (!Number.isFinite(value)) {
+      return fontSize;
+    }
+
+    return `${Math.max(10, Math.min(14, value))}px`;
+  }
+
+  function renderLinkTrayFallback(item) {
+    if (!item) {
+      return "";
+    }
+
+    const urlLabel = (() => {
+      if (item.type === "dom") {
+        return item.selector || "page element";
+      }
+
+      try {
+        const url = new URL(item.href);
+        return `${url.hostname}${url.pathname}`;
+      } catch (_error) {
+        return item.href || item.key;
+      }
+    })();
+
+    return [
+      `<p class="happy-browser-link-tray__fallback-title">${escapeHtml(item.title || item.href)}</p>`,
+      item.snippet ? `<p class="happy-browser-link-tray__fallback-snippet">${escapeHtml(item.snippet)}</p>` : "",
+      `<p class="happy-browser-link-tray__fallback-url">${escapeHtml(urlLabel)}</p>`
+    ].join("");
+  }
+
+  function formatLinkTray() {
+    return `${state.linkTray.length}/${LINK_TRAY_MAX_ITEMS} link${state.linkTray.length === 1 ? "" : "s"}`;
+  }
+
   function rememberFailedCandidate(candidate) {
     state.failedSelectors.set(candidate.selector, {
       text: candidate.text || "",
@@ -1672,6 +2844,7 @@
       inspectionRow("Previous", formatCandidate(previousBest, previous && previous.confidence)),
       inspectionRow("Fallback", formatScrollFallback()),
       inspectionRow("Queue", formatAttentionQueue()),
+      inspectionRow("Tray", formatLinkTray()),
       inspectionRow("RA filter", formatRaFilterStatus()),
       "</dl>"
     ].join("");

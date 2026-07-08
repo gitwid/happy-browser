@@ -254,6 +254,112 @@ async function main() {
     dom.window.close();
   });
 
+  await run("captures dragged links from their surrounding rendered row", () => {
+    const { dom } = makeContentDocument({
+      url: "https://github.com/gitwid/AI-Indexer/pulls",
+      html: `
+        <!doctype html>
+        <main>
+          <div class="Box-row" id="pr-row" data-width="760" data-height="94" data-top="80">
+            <a class="Link--primary" id="pr-link" href="/gitwid/AI-Indexer/pull/12">Add tray support</a>
+            <span>#12 opened by diva</span>
+            <p>Dock pull request links for chronological review.</p>
+          </div>
+        </main>
+      `
+    });
+
+    const hooks = dom.window.__HappyBrowserTestHooks;
+    const item = hooks.getLinkTrayItemFromAnchor(dom.window.document.querySelector("#pr-link"));
+
+    assert.equal(item.href, "https://github.com/gitwid/AI-Indexer/pull/12");
+    assert.equal(item.title, "Add tray support");
+    assert.match(item.snippet, /opened by diva/);
+    assert.match(item.snapshotHtml, /Dock pull request links/);
+    assert.doesNotMatch(item.snapshotHtml, /href=/);
+    dom.window.close();
+  });
+
+  await run("link tray keeps four newest FIFO entries", async () => {
+    const { dom, storage } = makeContentDocument({
+      url: "https://github.com/gitwid/AI-Indexer/pulls"
+    });
+
+    const hooks = dom.window.__HappyBrowserTestHooks;
+    for (let index = 1; index <= 5; index += 1) {
+      await hooks.queueLinkTrayItem({
+        href: `https://github.com/gitwid/AI-Indexer/pull/${index}`,
+        title: `PR ${index}`,
+        snippet: `Pull request ${index}`,
+        snapshotHtml: `<p>PR ${index}</p>`
+      });
+    }
+
+    const hrefs = Array.from(hooks.getLinkTrayItems(), (item) => item.href);
+    assert.deepEqual(hrefs, [
+      "https://github.com/gitwid/AI-Indexer/pull/5",
+      "https://github.com/gitwid/AI-Indexer/pull/4",
+      "https://github.com/gitwid/AI-Indexer/pull/3",
+      "https://github.com/gitwid/AI-Indexer/pull/2"
+    ]);
+    assert.equal(storage.happyLinkTray.length, 4);
+    assert.equal(storage.happyLinkTray.some((item) => /\/1$/.test(item.href)), false);
+
+    await hooks.clearLinkTray();
+    assert.equal(hooks.getLinkTrayItems().length, 0);
+    assert.equal(storage.happyLinkTray.length, 0);
+    assert.equal(getHappyRail(dom).dataset.linkTrayCount, "0");
+    dom.window.close();
+  });
+
+  await run("photographs non-draggable DOM controls into reviewed tray actions", async () => {
+    const { dom, storage } = makeContentDocument({
+      url: "https://example.test/workflow",
+      html: `
+        <!doctype html>
+        <main>
+          <section id="conflict-tools" data-width="420" data-height="120" data-top="80">
+            <h2>Conflict choices</h2>
+            <button id="accept-incoming" data-width="160" data-height="36" data-top="120">Accept incoming change</button>
+          </section>
+        </main>
+      `
+    });
+
+    const { window } = dom;
+    const hooks = window.__HappyBrowserTestHooks;
+    const button = window.document.querySelector("#accept-incoming");
+    const item = hooks.getLinkTrayItemFromElement(button);
+
+    assert.equal(item.type, "dom");
+    assert.equal(item.review, "pending");
+    assert.equal(item.selfTest.passed, true);
+    assert.equal(item.selector, "#accept-incoming");
+    assert.match(item.snapshotHtml, /Conflict choices/);
+
+    await hooks.queueLinkTrayItem(item);
+    assert.equal(storage.happyLinkTray[0].review, "pending");
+
+    const rail = getHappyRail(dom);
+    const accept = rail.querySelector(".happy-browser-link-tray__accept");
+    accept.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+    assert.equal(hooks.getLinkTrayItems()[0].review, "accepted");
+    assert.equal(storage.happyLinkTray[0].review, "accepted");
+
+    const second = hooks.getLinkTrayItemFromElement(button);
+    await hooks.queueLinkTrayItem({
+      ...second,
+      selector: "button:nth-of-type(1)",
+      key: "dom:reject-me"
+    });
+    const reject = rail.querySelector(".happy-browser-link-tray__reject");
+    reject.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+    assert.equal(hooks.getLinkTrayItems().some((trayItem) => trayItem.key === "dom:reject-me"), false);
+    dom.window.close();
+  });
+
   await run("filters RA Berlin cards to this week plus LGBTQ signals from detail pages", async () => {
     const detailPages = {
       "https://ra.co/events/111": raDetail({
