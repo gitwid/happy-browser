@@ -41,3 +41,19 @@ Once identified, Happy Browser can treat the app as a first-class surface rather
 The 3D version is the more interesting direction. If app surfaces can be re-rendered onto 3D elements, the extracted app becomes its own navigable layer with remapped controls, re-honeycombed buttoning, depth, and spatial affordances. The source page remains available as provenance and context, but the user drives the useful application surface directly. Think spaceships and space-shuttles: web apps detached from page clutter, still grounded in the real DOM.
 
 Implementation notes: app extraction should be explainable and reversible. The system should show the detected app boundary, the signals that made it confident, and any cross-origin or policy constraints. It must not spoof origin, bypass access controls, hide material disclosures, or detach a surface in a way that changes the user's legal or privacy relationship with the original service.
+
+## Seam Surfing
+
+Happy Browser can also support expressive seasonal and preference-shaped browsing modes. A holiday mode might tune an image or video feed toward spooky posts, cute posts, or an alternating trick/treat rhythm, but the deeper product idea is not a binary content filter. Seam surfing means exploring content along the oscillation between dualities: scary and cute, serious and playful, precise and loose, familiar and strange.
+
+The system should infer candidate seams from visible content, user behavior, and optional human-in-the-loop validation. Once a seam is learned, navigation can move along it deliberately: hold one side, alternate sides, drift through the middle, or surface delightful contrast. The UI should make the current seam legible and reversible so the user feels accompanied by a taste-aware browser, not trapped in an opaque recommender.
+
+This should remain local-first wherever possible. Seasonal or playful modes can be whimsical at the surface, but the underlying contract is serious: show why an item was considered one side of a seam, let the user correct it, and treat delight as a learned preference with consent rather than a default assumption.
+
+## Spatial Web Composer
+
+Some messy web apps already contain the structure of a better interface: a navigation rail, a primary content stream, side recommendations, a chat window, utility controls, and status surfaces. Happy Browser should be able to decompose that page into movable tiles, then recompose it as a spatial scene. A common first layout is a three-panel triptych: primary content in the center, supporting panels on either side, with the outside panels slightly angled inward in 3D space.
+
+This is a web-native descendant of Quartz Composer, but more approachable. DOM regions become tiles that can be rearranged, resized, linked, slid aside, or pinned into their own surface. Connections between tiles should stay live: a selected post can drive the chat tile, a tray item can open into the center tile, a side panel can become a honeycombed control surface, and captured actions can remain attached to the tile they came from.
+
+The composition layer should preserve provenance. Each tile needs to know its source DOM region, origin, interaction permissions, and current self-test state. Rearrangement must not break the user's understanding of where an action will happen. The delight comes from turning a flat cluttered page into a legible cockpit, not from disguising the original web app.
