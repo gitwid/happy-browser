@@ -322,8 +322,9 @@ async function listTargetSummary(port) {
 }
 
 async function injectHappyBrowser(client) {
-  const navigationScoring = fs.readFileSync(path.join(EXTENSION_PATH, "src", "navigation-scoring.js"), "utf8");
-  const contentScript = fs.readFileSync(path.join(EXTENSION_PATH, "src", "content.js"), "utf8");
+  // Content scripts in manifest order: feature modules register onto
+  // window.HappyBrowser and must load before content.js.
+  const scriptFiles = ["navigation-scoring.js", "site-filter.js", "link-tray.js", "work-tree.js", "ra-filter.js", "content.js"];
   await evaluateOrThrow(client, {
     expression: `
       window.chrome = window.chrome || {};
@@ -363,16 +364,14 @@ async function injectHappyBrowser(client) {
     awaitPromise: true,
     returnByValue: true
   });
-  await evaluateOrThrow(client, {
-    expression: `eval(${JSON.stringify(`${navigationScoring}\n//# sourceURL=happy-browser-navigation-scoring.js`)})`,
-    awaitPromise: true,
-    returnByValue: true
-  });
-  await evaluateOrThrow(client, {
-    expression: `eval(${JSON.stringify(`${contentScript}\n//# sourceURL=happy-browser-content.js`)})`,
-    awaitPromise: true,
-    returnByValue: true
-  });
+  for (const file of scriptFiles) {
+    const source = fs.readFileSync(path.join(EXTENSION_PATH, "src", file), "utf8");
+    await evaluateOrThrow(client, {
+      expression: `eval(${JSON.stringify(`${source}\n//# sourceURL=happy-browser-${file}`)})`,
+      awaitPromise: true,
+      returnByValue: true
+    });
+  }
 }
 
 async function evaluateOrThrow(client, params) {

@@ -86,8 +86,12 @@ function makeContentDocument(options = {}) {
     window.__lastScrolledIntoView = this;
   };
 
-  const contentPath = path.join(__dirname, "..", "src", "content.js");
-  window.eval(fs.readFileSync(contentPath, "utf8"));
+  // Feature modules register onto window.HappyBrowser and must load before content.js,
+  // mirroring the manifest content_scripts order.
+  const moduleFiles = ["site-filter.js", "link-tray.js", "work-tree.js", "ra-filter.js", "content.js"];
+  for (const file of moduleFiles) {
+    window.eval(fs.readFileSync(path.join(__dirname, "..", "src", file), "utf8"));
+  }
   return { dom, storage };
 }
 
@@ -357,6 +361,77 @@ async function main() {
     reject.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
     await Promise.resolve();
     assert.equal(hooks.getLinkTrayItems().some((trayItem) => trayItem.key === "dom:reject-me"), false);
+    dom.window.close();
+  });
+
+  await run("work tree records clicked links and buttons as inspectable steps", () => {
+    const { dom } = makeContentDocument({
+      url: "https://review.example.test/queue",
+      html: `
+        <!doctype html>
+        <main>
+          <a id="open" href="/queue/item-7">Open item 7</a>
+          <button id="resolve" type="button">Resolve conflict</button>
+          <a id="external" href="https://elsewhere.example.org/docs">Docs</a>
+        </main>
+      `
+    });
+    const { window } = dom;
+    const hooks = window.__HappyBrowserTestHooks;
+
+    hooks.recordWorkTreeInteraction(window.document.querySelector("#open"));
+    hooks.recordWorkTreeInteraction(window.document.querySelector("#resolve"));
+    hooks.recordWorkTreeInteraction(window.document.querySelector("#external"));
+
+    const steps = hooks.getWorkTreeSteps();
+    assert.equal(steps.length, 3);
+    assert.deepEqual(Array.from(steps, (step) => step.kind), ["link", "button", "link"]);
+    assert.equal(steps[0].label, "Open item 7");
+    // Same-origin link keeps a compact path; cross-origin keeps the full href.
+    assert.equal(steps[0].href, "/queue/item-7");
+    assert.equal(steps[2].href, "https://elsewhere.example.org/docs");
+    assert.equal(getHappyRail(dom).dataset.workTreeCount, "3");
+
+    // A step is rendered into the rail panel and stays inspectable (title attribute).
+    const rendered = getHappyRail(dom).querySelectorAll(".happy-browser-work-tree__step");
+    assert.equal(rendered.length, 3);
+    assert.match(rendered[0].getAttribute("title"), /Open item 7/);
+    dom.window.close();
+  });
+
+  await run("work tree collapses consecutive identical actions into one counted step", () => {
+    const { dom } = makeContentDocument({
+      url: "https://review.example.test/queue",
+      html: `
+        <!doctype html>
+        <main>
+          <button id="accept" type="button">Accept incoming</button>
+          <a id="next" href="/queue/next">Next</a>
+        </main>
+      `
+    });
+    const { window } = dom;
+    const hooks = window.__HappyBrowserTestHooks;
+    const accept = window.document.querySelector("#accept");
+
+    hooks.recordWorkTreeInteraction(accept);
+    hooks.recordWorkTreeInteraction(accept);
+    hooks.recordWorkTreeInteraction(accept);
+    hooks.recordWorkTreeInteraction(window.document.querySelector("#next"));
+
+    const steps = hooks.getWorkTreeSteps();
+    assert.equal(steps.length, 2);
+    assert.equal(steps[0].count, 3);
+    assert.equal(steps[0].label, "Accept incoming");
+    assert.equal(steps[1].count, 1);
+
+    const badge = getHappyRail(dom).querySelector(".happy-browser-work-tree__count");
+    assert.ok(badge);
+    assert.equal(badge.textContent, "×3");
+
+    hooks.clearWorkTree();
+    assert.equal(hooks.getWorkTreeSteps().length, 0);
+    assert.equal(getHappyRail(dom).dataset.workTreeCount, "0");
     dom.window.close();
   });
 
