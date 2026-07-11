@@ -17,7 +17,6 @@
     happyEnabled: true,
     railHost: null,
     rail: null,
-    failedSelectors: new Map(),
     drag: null,
     toggleDrag: null,
     recenterTimer: null,
@@ -26,7 +25,6 @@
     toggleY: null,
     statusTimer: null,
     observerTimer: null,
-    preNavigationSnapshot: null,
     attentionQueue: [],
     linkTray: [],
     linkTrayDragItem: null,
@@ -939,10 +937,19 @@
     escapeHtml
   });
 
+  // Navigation outcome kernel: failed-selector memory + did-the-page-advance detection,
+  // extracted to src/navigation-outcome.js. content.js injects the viewport-aware media
+  // signature so gallery/carousel steps still count as advancement.
+  const outcome = window.HappyNavigationOutcome.createOutcomeMemory({
+    document,
+    location: window.location,
+    getMediaSignature: getVisibleMediaSignature
+  });
+
   if (window.__happyBrowserTestHooksRequested) {
     window.__HappyBrowserTestHooks = {
-      capturePageSnapshot,
-      didPageAdvance,
+      capturePageSnapshot: () => outcome.captureSnapshot(),
+      didPageAdvance: window.HappyNavigationOutcome.pageAdvanced,
       getAttentionQueueItem,
       getFeedNavigationAction,
       getFeedPosts,
@@ -979,7 +986,9 @@
   setRailState("scanning", "Scanning");
   scheduleAnalyze(80);
   installListeners();
-  installRailWatchdog();
+  if (!window.__happyBrowserTestHooksRequested) {
+    installRailWatchdog();
+  }
 
   function loadSettings() {
     if (!chrome.storage || !chrome.storage.sync) {
@@ -1510,10 +1519,10 @@
       return;
     }
 
-    pruneFailedSelectors();
+    outcome.pruneFailedSelectors();
     state.analysis = scoring.analyzeNavigation(document, {
       location: window.location,
-      excludedSelectors: getExcludedSelectors()
+      excludedSelectors: outcome.getExcludedSelectors()
     });
     const visualState = getVisualState();
     const label = getVisualStateLabel(visualState);
@@ -1544,7 +1553,7 @@
 
     const feedAction = getFeedNavigationAction(direction);
     if (feedAction) {
-      state.preNavigationSnapshot = capturePageSnapshot();
+      outcome.setPreNavigationSnapshot(outcome.captureSnapshot());
       if (feedAction.type === "carousel" && feedAction.candidate) {
         announce(`Going ${direction}`);
         performCandidate(feedAction.candidate, feedAction.post);
@@ -1562,7 +1571,7 @@
 
     const result = state.analysis && state.analysis.directions[direction];
     const candidate = result && result.best;
-    state.preNavigationSnapshot = capturePageSnapshot();
+    outcome.setPreNavigationSnapshot(outcome.captureSnapshot());
 
     if (candidate && candidate.confidence !== "none") {
       announce(`Going ${direction}`);
@@ -1625,7 +1634,7 @@
   function getScopedPostCarouselCandidate(post, direction) {
     const result = scoring.analyzeNavigation(post, {
       location: window.location,
-      excludedSelectors: getExcludedSelectors()
+      excludedSelectors: outcome.getExcludedSelectors()
     });
     const directionResult = result && result.directions && result.directions[direction];
     const candidate = directionResult && directionResult.best;
@@ -1787,54 +1796,14 @@
   }
 
   function observeNavigationOutcome(direction, source, candidate) {
-    window.setTimeout(() => {
-      const after = capturePageSnapshot();
-      const before = state.preNavigationSnapshot;
-      const advanced = didPageAdvance(before, after);
-
-      if (state.debug) {
-        console.debug("[Happy Browser] navigation outcome", {
-          direction,
-          source,
-          candidate,
-          advanced,
-          before,
-          after
-        });
-      }
-
-      if (!advanced && candidate && candidate.selector && candidate.type === "click") {
-        rememberFailedCandidate(candidate);
-        announce("Noted");
-      }
-
-      scheduleAnalyze(40);
-    }, 650);
-  }
-
-  function capturePageSnapshot() {
-    const active = document.activeElement;
-    return {
-      href: window.location.href,
-      title: document.title,
-      bodyTextLength: document.body ? getBodyTextLength() : 0,
-      activeElementSignature: active ? `${active.tagName}:${active.id}:${active.className}:${active.getAttribute("aria-current") || ""}` : "",
-      mediaSignature: getVisibleMediaSignature()
-    };
-  }
-
-  function getBodyTextLength() {
-    return String(document.body.innerText || document.body.textContent || "").length;
-  }
-
-  function didPageAdvance(before, after) {
-    return Boolean(before && after && (
-      before.href !== after.href ||
-      before.title !== after.title ||
-      Math.abs(before.bodyTextLength - after.bodyTextLength) > 120 ||
-      before.activeElementSignature !== after.activeElementSignature ||
-      before.mediaSignature !== after.mediaSignature
-    ));
+    outcome.observeNavigationOutcome({
+      direction,
+      source,
+      candidate,
+      debug: state.debug,
+      onFailedClick: () => announce("Noted"),
+      onComplete: () => scheduleAnalyze(40)
+    });
   }
 
   function getVisibleMediaSignature() {
@@ -1989,47 +1958,6 @@
       button.setAttribute("aria-label", label);
       button.setAttribute("title", label);
     }
-  }
-
-  function rememberFailedCandidate(candidate) {
-    state.failedSelectors.set(candidate.selector, {
-      text: candidate.text || "",
-      failedAt: Date.now()
-    });
-  }
-
-  function getExcludedSelectors() {
-    return Array.from(state.failedSelectors.entries())
-      .filter(([_selector, failure]) => Date.now() - failure.failedAt < 5000)
-      .map(([selector]) => selector);
-  }
-
-  function pruneFailedSelectors() {
-    const now = Date.now();
-    state.failedSelectors.forEach((failure, selector) => {
-      if (now - failure.failedAt > 5000 || isVisibleActionableLoadMore(selector)) {
-        state.failedSelectors.delete(selector);
-      }
-    });
-  }
-
-  function isVisibleActionableLoadMore(selector) {
-    const element = selector ? document.querySelector(selector) : null;
-    if (!element || !element.isConnected) {
-      return false;
-    }
-
-    const text = String(element.innerText || element.textContent || "").trim().toLowerCase();
-    if (text !== "mehr laden" && text !== "load more" && text !== "show more") {
-      return false;
-    }
-
-    const rect = element.getBoundingClientRect();
-    const style = window.getComputedStyle(element);
-    const visible = rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0";
-    const disabled = element.disabled || element.getAttribute("disabled") !== null || element.getAttribute("aria-disabled") === "true" || element.closest(".disabled, [aria-disabled='true'], [disabled]");
-
-    return visible && !disabled;
   }
 
   function setRailState(nextState, label) {
