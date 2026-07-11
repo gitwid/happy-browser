@@ -15,6 +15,7 @@ xcodebuild \
     -scheme HappyJournal \
     -destination 'generic/platform=iOS Simulator' \
     build
+scripts/validate_research_testbeds.py
 scripts/validate_knowledgertx.py
 scripts/lambda_polysemy_audit.py
 scripts/check_recoverability_packet.py --allow-empty-artifacts

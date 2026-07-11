@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: May 23, 2026
+Last updated: July 4, 2026
 
 Happy Browser is a browser extension that helps users navigate websites with previous/next controls, keyboard shortcuts, gestures, and floating buttons.
 
@@ -8,11 +8,22 @@ Happy Browser is a browser extension that helps users navigate websites with pre
 
 Happy Browser analyzes the structure of the web page you are currently viewing to find likely previous, next, and load-more controls. This analysis happens locally inside your browser.
 
-Happy Browser does not send page content, browsing history, URLs, clicks, form values, or navigation analysis to a remote server.
+Happy Browser does not send page content, browsing history, URLs, clicks, form values, or navigation analysis to a server operated by Happy Browser.
+
+## Optional Network Requests
+
+Some optional features request public web pages over HTTPS when you are already browsing a supported site. These requests behave like ordinary page loads initiated by the extension, not like telemetry or analytics:
+
+- **Wikipedia link preview** (on `*.wikipedia.org` only): when you hover a Wikipedia article link, the extension may request the public Wikipedia parse API for that article title so it can show a local preview. No Happy Browser server is involved.
+- **RA Berlin event filter** (on `ra.co/events/de/berlin` only, when you enable the filter): the extension may request individual public RA event detail pages you can already see listed on the page, so it can classify today's events locally. Requests are rate-limited, stay on `ra.co`, and use your existing browser session cookies only for those public pages. No Happy Browser server is involved.
+
+If you do not use these features, or you are not on those pages, the extension does not make these requests.
 
 ## Data Stored
 
 Happy Browser stores local extension preferences, such as whether the floating rail is enabled, whether debug logging is enabled, and whether Happy navigation is currently on.
+
+If you use the attention queue, Happy Browser stores queued-item metadata in local extension storage, such as the page URL, an available post permalink, a short visible text snippet, media identifiers, and the time you queued the item. This queue is used only to help you revisit items later.
 
 These settings are stored using the browser's extension storage APIs. Depending on your browser settings, the browser may sync extension preferences through your browser account.
 

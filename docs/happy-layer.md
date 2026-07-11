@@ -3,6 +3,11 @@
 Happy Browser is the first member of a broader product family: small,
 transparent intent-normalization tools for broken digital environments.
 
+Method doctrine (classification discipline, calibration order, suppression vs.
+deletion, dual-clock processing) lives in
+[`system-literacy-v3.md`](system-literacy-v3.md). This document governs product
+shape and language; that one governs how claims and classifiers are tested.
+
 The core claim is simple:
 
 > Happy Browser does not browse for you. It makes browsing answerable to you.

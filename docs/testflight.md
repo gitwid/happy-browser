@@ -1,6 +1,6 @@
 # Safari TestFlight Prep
 
-Happy Browser's Safari build is a macOS containing app with an embedded Safari Web Extension.
+Fenchurch is the Safari TestFlight candidate: a macOS containing app with an embedded Safari Web Extension.
 
 ## Bundle Identifiers
 
@@ -13,8 +13,9 @@ These identifiers must exist in the Apple Developer account before App Store Con
 
 - Scheme: `Happy Browser`
 - Configuration for archive: `Release`
-- Version: `1.0`
-- Build: `1`
+- Release display identity: `Fenchurch` / `Fenchurch Extension`
+- Version: `1.1`
+- Build: `3`
 - Minimum macOS: `14.0`
 - Hardened Runtime: enabled
 - App Sandbox: enabled
@@ -32,8 +33,8 @@ The containing app does not request outgoing network sandbox access. The extensi
    - Bundle ID: `com.gitwid.happybrowser`
    - SKU: `happy-browser-macos`
 4. In Xcode, set the Team for both targets:
-   - `Happy Browser`
-   - `Happy Browser Extension`
+  - `Happy Browser`
+  - `Happy Browser Extension`
 
 ## Archive For TestFlight
 
@@ -81,18 +82,29 @@ Use the copy in `docs/store-listing-draft.md` as a starting point.
 Privacy posture:
 
 - Page analysis happens locally in Safari.
-- No browsing history, page content, form values, clicks, or navigation analysis are sent to a server.
+- No browsing history, page content, form values, clicks, or navigation analysis are sent to a Happy Browser server.
+- Optional features may fetch public pages from `wikipedia.org` or `ra.co` only on the pages where those features apply (see `PRIVACY.md`).
 - Preferences are stored locally through browser/extension storage.
 
 Permission explanation:
 
-Happy Browser needs access to normal web pages so it can inspect visible page controls and find previous, next, and load-more navigation targets. This analysis runs locally in the browser and is used only to provide navigation controls shown to the user.
+Fenchurch needs access to normal web pages so it can inspect visible page controls and find previous, next, and load-more navigation targets. This analysis runs locally in the browser and is used only to provide navigation controls shown to the user.
 
 Compliance notes:
 
 - See `docs/app-store-compliance.md`.
 - The Xcode project sets `INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO`.
-- If Happy Browser adds API calls, sync, analytics, AI services, accounts, telemetry, or custom cryptography, revisit export compliance and privacy answers before uploading another build.
+- If Happy Browser adds a backend API, account sync, analytics, AI services, telemetry, or custom cryptography, revisit export compliance and privacy answers before uploading another build.
+
+## TestFlight Beta Notes (suggested)
+
+Use this in App Store Connect → TestFlight → What to Test:
+
+> Fenchurch 1.1 (build 3) — Safari navigation rail, toggle, keyboard shortcut, Wikipedia link preview, and experimental RA Berlin weekly queer-event filter (ra.co only). Core navigation is local page analysis. RA filter and Wikipedia preview may fetch public HTTPS pages on supported sites; nothing is sent to a Happy Browser server. Report broken navigation, missing controls, or RA filter false positives/negatives.
+
+## Release Branch
+
+TestFlight promotion for extension **0.3.0** / app **1.1 (build 3)** is prepared on branch `fable`. Merge to `main` and tag before upload so App Store Connect, docs, and git history align.
 
 ## First TestFlight Goal
 

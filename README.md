@@ -49,6 +49,14 @@ Sync the Safari extension resources manually when needed outside Xcode:
 npm run safari:sync
 ```
 
+For Safari temporary extension loading (Safari 26+), use dev naming:
+
+```sh
+npm run safari:sync:dev
+```
+
+Then Safari → Settings → Developer → **Add Temporary Extension…** → select `safari-extension/`.
+
 Xcode Debug builds run this automatically via a **Sync Extension Resources** build phase.
 
 Package the Chrome extension:

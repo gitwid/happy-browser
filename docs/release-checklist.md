@@ -2,14 +2,14 @@
 
 ## Repo
 
-- [ ] Confirm `.gitignore` excludes local state, build products, and Xcode user data.
+- [x] Confirm `.gitignore` excludes local state, build products, and Xcode user data.
 - [ ] Decide whether `docs/product-notes.md` should remain in the public repository.
-- [ ] Confirm README states that the repository contains both Chrome and Safari extension targets.
-- [ ] Confirm `LICENSE.md` and `CONTRIBUTING.md` reflect source-available tryware and contribution terms.
-- [ ] Run `npm test`.
+- [x] Confirm README states that the repository contains both Chrome and Safari extension targets.
+- [x] Confirm `LICENSE.md` and `CONTRIBUTING.md` reflect source-available tryware and contribution terms.
+- [x] Run `npm test`.
 - [ ] Run `npm run package:chrome`.
 - [ ] Build the Safari containing app in Xcode.
-- [ ] Tag the release, for example `v0.1.0-beta`.
+- [ ] Tag the release, for example `v1.1-build3` (app 1.1 / extension 0.3.0).
 
 ## Chrome Web Store
 
@@ -30,6 +30,7 @@
 - [ ] Set production bundle identifiers for the containing app and extension.
 - [ ] Follow `docs/testflight.md` for TestFlight preparation.
 - [ ] Review `docs/app-store-compliance.md` before TestFlight and again before public release.
+- [x] Update `PRIVACY.md` for optional Wikipedia and RA public-page fetches (July 2026).
 - [ ] Configure signing team and capabilities in Xcode.
 - [ ] Replace development copy and screenshots with App Store-ready copy.
 - [ ] Archive the macOS containing app in Xcode.
