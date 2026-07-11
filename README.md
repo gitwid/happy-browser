@@ -31,6 +31,10 @@ Happy Browser analyzes the current page locally in the browser. It does not tran
 
 ## Development
 
+### Extension identity (Trillian / Fenchurch)
+
+The extension's manifest `name` is the **dev** identity **Trillian**, and the root `manifest.json` in this repo carries that dev name on purpose. Packaging for production swaps it to **Fenchurch** through the Safari sync scripts (`HAPPY_BROWSER_DEV=1` keeps Trillian; the plain `safari:sync` and release builds emit Fenchurch). A consequence worth knowing: a **Load unpacked** Chrome build always runs as the dev identity **Trillian**, since it uses the root manifest verbatim. This is intentional, not a bug. (The macOS containing app uses a separate pair of names — **Happy Browser Dev** for Debug, **Happy Browser** for Release.)
+
 Install dependencies:
 
 ```sh
@@ -42,6 +46,30 @@ Run tests:
 ```sh
 npm test
 ```
+
+### Content-script modules
+
+The main-world content script is split into focused files that load in order and cooperate through a shared `window.HappyBrowser` namespace (see `content_scripts` in `manifest.json`):
+
+- `src/navigation-scoring.js` — page-analysis engine (previous/next/load-more scoring).
+- `src/site-filter.js` — reusable, site-agnostic filter primitives (`window.HappyBrowser.siteFilter`): request pacing, anti-bot fail-fast, evidence excerpts, confirmed-signal storage.
+- `src/link-tray.js` — the Link Tray (`registerLinkTray`).
+- `src/work-tree.js` — the read-only Automator Work Tree (`registerWorkTree`).
+- `src/ra-filter.js` — the Resident Advisor queer-event filter (`registerRaFilter`), built on `site-filter`.
+- `src/content.js` — the core rail, gestures, navigation, and inspector. It owns the shared `state` object and helpers, and calls each feature module's `registerX(ctx)` to wire it in.
+
+Feature modules only *define* their `register*` factory at load; every cross-reference resolves at call time (during `content.js` init), so load order among the feature files is not fragile. Add a new module by dropping it into the `content_scripts` list before `content.js` and (for tests) the `moduleFiles` array in `tests/content-media-signature.test.js`.
+
+### Single source of truth
+
+`src/` is the **only** tracked copy of the extension source. The Safari staging
+copy (`safari-extension/src/`) and the Xcode resources copy
+(`safari/Happy Browser/.../Resources/src/`) are **generated** from `src/` and are
+git-ignored — never edit or commit them. Regenerate them with the sync command
+below; the Xcode project also runs the sync automatically in its **Sync Extension
+Resources** build phase, and it references `Resources/src` as a folder, so new files
+added under `src/` are picked up without editing the Xcode project. (Node or Python 3
+must be on `PATH` for the sync to run.)
 
 Sync the Safari extension resources manually when needed outside Xcode:
 

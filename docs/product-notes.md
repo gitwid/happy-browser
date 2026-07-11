@@ -32,6 +32,12 @@ Repeated passes should collapse only when the visible structure and state transi
 
 The key safety rule is that collapse follows evidence, not wishful similarity. A replayable branch needs a stable target signature, a before state, an after state, and a visible recovery path if the page no longer matches. The UI can feel like a pill box or blister pack: compact, tactile, and sequential, with iOS Liquid Glass as the interaction reference.
 
+**Implementation status (2026-07-10): read-only slice landed.** `src/work-tree.js` is a first, deliberately non-replaying slice. It passively observes visible intent — clicked links, buttons, and focusable controls — and renders them as a compact, inspectable work tree in the rail (a blister-pack list with a per-step count). Consecutive identical actions collapse into one counted step, collapse following evidence (identical target signature) only. It records and displays; it never replays, honouring the preview-before-act rule. Replay stays a later, separate slice that will add before/after state signatures and a recovery path. State is in-memory per page load — no persistence, no keystroke capture.
+
+## Site-filter module
+
+The hard parts of the RA queer-event filter — rate-limited detail scanning, anti-bot fail-fast, human-readable evidence excerpts, and persisted human-confirmed signals — are the machinery a general "one filter per site" surface (and Seam Surfing) needs. As of 2026-07-10 these are extracted, dependency-free, into `src/site-filter.js` (`window.HappyBrowser.siteFilter`); `src/ra-filter.js` now supplies only the RA-specific patterns, selectors, storage key, and state slots, delegating the reusable machinery. A second site filter should be able to reuse the module rather than re-derive it.
+
 ## Happy Browser Apps
 
 Some pages contain a clearly bounded app inside an otherwise incidental website. A service widget, online reception panel, booking surface, checkout flow, or support console can often be separated from the page chrome by DOM structure, fixed positioning, iframe boundaries, role landmarks, visual containment, interaction density, and repeated button groups. The goal is to recognize "the actual app" and the irrelevant website portion as distinct layers.
