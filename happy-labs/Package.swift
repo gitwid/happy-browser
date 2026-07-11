@@ -7,7 +7,8 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "HappyLabs", targets: ["HappyLabsApp"])
+        .executable(name: "HappyLabs", targets: ["HappyLabsApp"]),
+        .executable(name: "HappyLabsValidate", targets: ["HappyLabsValidate"])
     ],
     dependencies: [
         .package(path: "Packages/HappyLabsCore")
@@ -19,6 +20,13 @@ let package = Package(
                 .product(name: "HappyLabsCore", package: "HappyLabsCore")
             ],
             path: "HappyLabsApp"
+        ),
+        .executableTarget(
+            name: "HappyLabsValidate",
+            dependencies: [
+                .product(name: "HappyLabsCore", package: "HappyLabsCore")
+            ],
+            path: "Sources/HappyLabsValidate"
         )
     ]
 )

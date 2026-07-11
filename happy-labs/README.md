@@ -56,6 +56,16 @@ The `500 → 20` test uses a **designed synthetic corpus** (20 threads × 25 mes
 
 See [Tests/Acceptance/README.md](Packages/HappyLabsCore/Tests/Acceptance/README.md).
 
+## Phase 0.1 — real mailbox validation
+
+The synthetic acceptance test proves plumbing only. To validate story quality on real Mail.app exports:
+
+```sh
+./scripts/run_phase_0_1.sh ~/path/to/export.mbox --output /tmp/phase01
+```
+
+See [PHASE_0_1_VALIDATION.md](PHASE_0_1_VALIDATION.md) for the full runbook, findings template, and privacy rules.
+
 ## Out of scope (Phase 0)
 
 Gmail OAuth, IMAP, third-party/social ingestion, Happy Browser linkage, cloud sync, background automation without review.

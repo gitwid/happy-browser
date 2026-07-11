@@ -253,6 +253,9 @@ final class AppModel: ObservableObject {
                 editedTitle: title == entry.title ? nil : title,
                 editedBodyMarkdown: body == entry.bodyMarkdown ? nil : body
             )
+            if let importID = lastImportID {
+                coherenceReport = try coherenceService.generate(mboxImportID: importID)
+            }
             statusMessage = "Applied \(action.rawValue) to \(title)."
             refresh()
         } catch {
