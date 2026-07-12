@@ -46,6 +46,7 @@
       ],
       "js": [
         "src/navigation-scoring.js",
+        "src/navigation-rail.js",
         "src/site-filter.js",
         "src/link-tray.js",
         "src/work-tree.js",

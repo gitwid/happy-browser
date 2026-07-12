@@ -324,7 +324,7 @@ async function listTargetSummary(port) {
 async function injectHappyBrowser(client) {
   // Content scripts in manifest order: feature modules register onto
   // window.HappyBrowser and must load before content.js.
-  const scriptFiles = ["navigation-scoring.js", "site-filter.js", "link-tray.js", "work-tree.js", "ra-filter.js", "content.js"];
+  const scriptFiles = ["navigation-scoring.js", "navigation-rail.js", "site-filter.js", "link-tray.js", "work-tree.js", "ra-filter.js", "content.js"];
   await evaluateOrThrow(client, {
     expression: `
       window.chrome = window.chrome || {};
