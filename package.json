@@ -8,7 +8,7 @@
     "package:chrome": "node scripts/package-chrome.js",
     "safari:sync": "node scripts/sync-safari-extension.js",
     "safari:sync:dev": "HAPPY_BROWSER_DEV=1 node scripts/sync-safari-extension.js",
-    "test": "node tests/navigation-scoring.test.js && node tests/content-media-signature.test.js && node tests/wikipedia-link-preview.test.js",
+    "test": "node tests/navigation-scoring.test.js && node tests/navigation-outcome.test.js && node tests/content-media-signature.test.js && node tests/wikipedia-link-preview.test.js",
     "testflight:upload": "./scripts/upload-testflight.sh"
   },
   "devDependencies": {

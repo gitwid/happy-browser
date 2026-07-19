@@ -88,7 +88,7 @@ function makeContentDocument(options = {}) {
 
   // Feature modules register onto window.HappyBrowser and must load before content.js,
   // mirroring the manifest content_scripts order.
-  const moduleFiles = ["site-filter.js", "link-tray.js", "work-tree.js", "ra-filter.js", "content.js"];
+  const moduleFiles = ["navigation-outcome.js", "site-filter.js", "link-tray.js", "work-tree.js", "ra-filter.js", "content.js"];
   for (const file of moduleFiles) {
     window.eval(fs.readFileSync(path.join(__dirname, "..", "src", file), "utf8"));
   }
