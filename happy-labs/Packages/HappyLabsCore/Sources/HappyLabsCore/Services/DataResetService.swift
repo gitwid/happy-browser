@@ -15,6 +15,7 @@ public struct DataResetService: Sendable {
             let entityNames = [
                 "DiscardedArtifactEntity",
                 "HumanDecisionEntity",
+                "JournalRevisionEntity",
                 "TransformationLogEntity",
                 "ContinuitySource",
                 "JournalEntryEntity",

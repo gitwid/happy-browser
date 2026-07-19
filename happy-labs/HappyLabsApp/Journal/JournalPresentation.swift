@@ -42,6 +42,18 @@ struct ProvenanceRung: Identifiable {
     let detail: String
 }
 
+struct MorningstarEvidenceDetail: Identifiable {
+    let capture: MorningstarCapture
+    let attachment: MorningstarJournalAttachment
+    let annotations: [MorningstarAnnotation]
+    let verification: MorningstarCaptureVerification?
+
+    var id: UUID { capture.id }
+    var verificationLabel: String {
+        verification?.verified == true ? "VERIFIED" : "REVIEW"
+    }
+}
+
 struct JournalEntryDetail: Identifiable {
     let id: UUID
     let overline: String
@@ -57,6 +69,7 @@ struct JournalEntryDetail: Identifiable {
     let decisionNote: String
     let isDiscarded: Bool
     let attachedContextSources: [ContextSourceSummary]
+    let morningstarEvidence: [MorningstarEvidenceDetail]
     let lineage: [ProvenanceRung]
 }
 
@@ -103,7 +116,11 @@ enum JournalPresentationBuilder {
         }
     }
 
-    static func detail(for entry: JournalEntryEntity, context: NSManagedObjectContext) -> JournalEntryDetail {
+    static func detail(
+        for entry: JournalEntryEntity,
+        context: NSManagedObjectContext,
+        morningstarEvidence: [MorningstarEvidenceDetail] = []
+    ) -> JournalEntryDetail {
         let story = fetchStoryCandidate(id: entry.storyCandidateID, context: context)
         let thread = story.flatMap { fetchThread(id: $0.emailThreadID, context: context) }
         let mbox = thread.flatMap { fetchMboxImport(for: $0, context: context) }
@@ -127,6 +144,7 @@ enum JournalPresentationBuilder {
             decisionNote: copy.note,
             isDiscarded: status == .discarded,
             attachedContextSources: attachedContextSummaries(for: entry),
+            morningstarEvidence: morningstarEvidence,
             lineage: lineage(
                 entry: entry,
                 story: story,

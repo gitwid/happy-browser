@@ -20,8 +20,18 @@ struct ConnectomeGraph {
         let originID: UUID
     }
 
+    struct WitnessBranch: Identifiable {
+        let id: UUID
+        let journalEntryID: UUID
+        let sequenceNumber: Int
+        let capturePosition: CGPoint
+        let interpretationPosition: CGPoint
+        let journalPosition: CGPoint
+    }
+
     let origins: [Origin]
     let nodes: [Node]
+    let witnessBranches: [WitnessBranch]
     let totalEntryCount: Int
     let displayedEntryCount: Int
     let totalArchivedCount: Int
@@ -40,9 +50,9 @@ struct ConnectomeGraph {
 
     var countLine: String {
         if displayedEntryCount < totalEntryCount {
-            return "\(totalEntryCount) ENTRIES · SHOWING \(displayedEntryCount) · \(totalArchivedCount) ARCHIVED · \(totalReviewCount) IN REVIEW"
+            return "\(totalEntryCount) ENTRIES · SHOWING \(displayedEntryCount) · \(witnessBranches.count) WITNESS LINKS · \(totalArchivedCount) ARCHIVED · \(totalReviewCount) IN REVIEW"
         }
-        return "\(totalEntryCount) ENTRIES · \(totalArchivedCount) ARCHIVED · \(totalReviewCount) IN REVIEW"
+        return "\(totalEntryCount) ENTRIES · \(witnessBranches.count) WITNESS LINKS · \(totalArchivedCount) ARCHIVED · \(totalReviewCount) IN REVIEW"
     }
 }
 
@@ -50,7 +60,10 @@ enum ConnectomeGraphBuilder {
     static let layoutSize = CGSize(width: 360, height: 344)
     static let maxDisplayedNodes = 80
 
-    static func build(context: NSManagedObjectContext) -> ConnectomeGraph? {
+    static func build(
+        context: NSManagedObjectContext,
+        morningstarStore: MorningstarStore? = nil
+    ) -> ConnectomeGraph? {
         let repo = EntityRepository(context: context)
         guard let entries = try? repo.fetchJournalEntries(), !entries.isEmpty else {
             return nil
@@ -107,15 +120,49 @@ enum ConnectomeGraphBuilder {
 
         let totalArchived = entries.filter { $0.entryStatus == .archived }.count
         let totalReview = entries.filter { $0.entryStatus == .draft || $0.entryStatus == .retained }.count
+        let witnessBranches = buildWitnessBranches(nodes: nodes, store: morningstarStore)
 
         return ConnectomeGraph(
             origins: origins,
             nodes: nodes,
+            witnessBranches: witnessBranches,
             totalEntryCount: entries.count,
             displayedEntryCount: displayed.count,
             totalArchivedCount: totalArchived,
             totalReviewCount: totalReview
         )
+    }
+
+    private static func buildWitnessBranches(
+        nodes: [ConnectomeGraph.Node],
+        store: MorningstarStore?
+    ) -> [ConnectomeGraph.WitnessBranch] {
+        guard let store else { return [] }
+        return nodes.flatMap { node in
+            let attachments = (try? store.attachments(journalEntryID: node.id)) ?? []
+            return attachments.enumerated().compactMap { item -> ConnectomeGraph.WitnessBranch? in
+                let (offset, attachment) = item
+                guard let capture = try? store.capture(id: attachment.captureID) else { return nil }
+                let baseAngle = Double(capture.sequenceNumber % 12) / 12 * 2 * Double.pi
+                let angle = baseAngle + Double(offset) * 0.35
+                let capturePoint = CGPoint(
+                    x: node.entryPosition.x + CGFloat(cos(angle)) * 46,
+                    y: node.entryPosition.y + CGFloat(sin(angle)) * 38
+                )
+                let interpretationPoint = CGPoint(
+                    x: capturePoint.x * 0.46 + node.entryPosition.x * 0.54,
+                    y: capturePoint.y * 0.46 + node.entryPosition.y * 0.54
+                )
+                return ConnectomeGraph.WitnessBranch(
+                    id: attachment.id,
+                    journalEntryID: node.id,
+                    sequenceNumber: capture.sequenceNumber,
+                    capturePosition: capturePoint,
+                    interpretationPosition: interpretationPoint,
+                    journalPosition: node.entryPosition
+                )
+            }
+        }
     }
 
     private static func layoutOrigins(

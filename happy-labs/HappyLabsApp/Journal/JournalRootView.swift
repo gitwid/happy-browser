@@ -6,6 +6,7 @@ struct JournalRootView: View {
     @State private var openEntryID: UUID?
     @State private var showConnectome = false
     @State private var provenanceExpanded = false
+    @State private var showMorningstar = false
 
     var body: some View {
         ZStack {
@@ -37,7 +38,19 @@ struct JournalRootView: View {
                 }
             )
         }
+        .sheet(isPresented: $showMorningstar) {
+            MorningstarPanelView()
+                .environmentObject(appModel)
+        }
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showMorningstar = true
+                } label: {
+                    Label("Morningstar", systemImage: "sparkle")
+                }
+                .help("Capture evidence with Morningstar")
+            }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button("Import .mbox…") { pickMbox() }
@@ -146,14 +159,18 @@ struct JournalRootView: View {
     }
 
     private var connectomeGraph: ConnectomeGraph? {
-        ConnectomeGraphBuilder.build(context: appModel.persistence.container.viewContext)
+        ConnectomeGraphBuilder.build(
+            context: appModel.persistence.container.viewContext,
+            morningstarStore: appModel.morningstarStore
+        )
     }
 
     private func detail(for id: UUID) -> JournalEntryDetail? {
         guard let entry = appModel.journalEntries.first(where: { $0.provenanceID == id }) else { return nil }
         return JournalPresentationBuilder.detail(
             for: entry,
-            context: appModel.persistence.container.viewContext
+            context: appModel.persistence.container.viewContext,
+            morningstarEvidence: appModel.morningstarEvidence(for: id)
         )
     }
 

@@ -160,7 +160,9 @@ public struct HumanReviewService: Sendable {
         journalEntryID: UUID,
         action: HumanDecisionAction,
         editedTitle: String?,
-        editedBodyMarkdown: String?
+        editedBodyMarkdown: String?,
+        evidenceReferences: [String] = [],
+        author: JournalRevisionAuthor = .human
     ) throws {
         let context = persistence.newBackgroundContext()
         try context.performAndWait {
@@ -170,12 +172,51 @@ public struct HumanReviewService: Sendable {
             request.fetchLimit = 1
             guard let entry = try context.fetch(request).first else { return }
 
-            if let editedTitle, !editedTitle.isEmpty {
-                entry.title = editedTitle
+            let existingRevisions = try repo.fetchJournalRevisions(journalEntryID: entry.provenanceID)
+            if existingRevisions.isEmpty {
+                let fingerprint = ContentFingerprint.hash(entry.title, entry.bodyMarkdown, evidenceReferences.joined(separator: "|"))
+                _ = repo.insertJournalRevision(
+                    journalEntryID: entry.provenanceID,
+                    revisionNumber: 1,
+                    title: entry.title,
+                    bodyMarkdown: entry.bodyMarkdown,
+                    evidenceReferences: evidenceReferences,
+                    // Baseline snapshot of the entry as it arrived from import,
+                    // taken before this decision is applied. Not the author's work.
+                    author: .pipeline,
+                    provenance: ProvenanceFields(
+                        originRef: entry.provenanceID,
+                        sourceClass: entry.sourceClass,
+                        codecPath: entry.codecPath,
+                        contentFingerprint: fingerprint
+                    )
+                )
             }
-            if let editedBodyMarkdown, !editedBodyMarkdown.isEmpty {
-                entry.bodyMarkdown = editedBodyMarkdown
+
+            let nextTitle = editedTitle.flatMap { $0.isEmpty ? nil : $0 } ?? entry.title
+            let nextBody = editedBodyMarkdown.flatMap { $0.isEmpty ? nil : $0 } ?? entry.bodyMarkdown
+            let contentChanged = nextTitle != entry.title || nextBody != entry.bodyMarkdown
+            if contentChanged {
+                let revisionNumber = Int32(existingRevisions.count + (existingRevisions.isEmpty ? 2 : 1))
+                let fingerprint = ContentFingerprint.hash(nextTitle, nextBody, evidenceReferences.joined(separator: "|"))
+                _ = repo.insertJournalRevision(
+                    journalEntryID: entry.provenanceID,
+                    revisionNumber: revisionNumber,
+                    title: nextTitle,
+                    bodyMarkdown: nextBody,
+                    evidenceReferences: evidenceReferences,
+                    author: author,
+                    provenance: ProvenanceFields(
+                        originRef: entry.provenanceID,
+                        sourceClass: entry.sourceClass,
+                        codecPath: entry.codecPath,
+                        contentFingerprint: fingerprint
+                    )
+                )
             }
+
+            entry.title = nextTitle
+            entry.bodyMarkdown = nextBody
             entry.contentFingerprint = ContentFingerprint.hash(entry.title, entry.bodyMarkdown)
 
             let decisionProvenance = ProvenanceFields(

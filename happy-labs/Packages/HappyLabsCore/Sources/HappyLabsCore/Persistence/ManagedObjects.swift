@@ -190,6 +190,34 @@ public final class HumanDecisionEntity: NSManagedObject, ProvenancePersistable {
     }
 }
 
+@objc(JournalRevisionEntity)
+public final class JournalRevisionEntity: NSManagedObject, ProvenancePersistable {
+    @NSManaged public var provenanceID: UUID
+    @NSManaged public var originRef: UUID
+    @NSManaged public var sourceClassRaw: String
+    @NSManaged public var codecPathJSON: String
+    @NSManaged public var contentFingerprint: String
+    @NSManaged public var journalEntryID: UUID
+    @NSManaged public var revisionNumber: Int32
+    @NSManaged public var title: String
+    @NSManaged public var bodyMarkdown: String
+    @NSManaged public var evidenceReferencesJSON: String
+    @NSManaged public var createdAt: Date
+    @NSManaged public var authorRaw: String?
+
+    public var evidenceReferences: [String] {
+        get { JSONStore.decode([String].self, from: evidenceReferencesJSON) ?? [] }
+        set { evidenceReferencesJSON = JSONStore.encode(newValue) }
+    }
+
+    /// `nil` means unattributed: written before authorship was recorded, or by
+    /// a path that did not declare one. Never read an absent author as `human`.
+    public var author: JournalRevisionAuthor? {
+        get { authorRaw.flatMap(JournalRevisionAuthor.init(rawValue:)) }
+        set { authorRaw = newValue?.rawValue }
+    }
+}
+
 @objc(DiscardedArtifactEntity)
 public final class DiscardedArtifactEntity: NSManagedObject, ProvenancePersistable {
     @NSManaged public var provenanceID: UUID

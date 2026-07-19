@@ -232,6 +232,30 @@ public struct EntityRepository {
         return entity
     }
 
+    /// - Parameter author: deliberately has no default. A revision whose author
+    ///   was never decided is unattributable forever, so every call site is
+    ///   made to state one.
+    public func insertJournalRevision(
+        journalEntryID: UUID,
+        revisionNumber: Int32,
+        title: String,
+        bodyMarkdown: String,
+        evidenceReferences: [String],
+        author: JournalRevisionAuthor,
+        provenance: ProvenanceFields
+    ) -> JournalRevisionEntity {
+        let entity: JournalRevisionEntity = insert("JournalRevisionEntity")
+        entity.apply(provenance)
+        entity.journalEntryID = journalEntryID
+        entity.revisionNumber = revisionNumber
+        entity.title = title
+        entity.bodyMarkdown = bodyMarkdown
+        entity.evidenceReferences = evidenceReferences
+        entity.author = author
+        entity.createdAt = Date()
+        return entity
+    }
+
     public func insertDiscardedArtifact(
         journalEntryID: UUID,
         storyCandidateID: UUID,
@@ -339,6 +363,13 @@ public struct EntityRepository {
 
     public func fetchHumanDecisions(journalEntryID: UUID) throws -> [HumanDecisionEntity] {
         try fetchHumanDecisions(journalEntryIDs: [journalEntryID])
+    }
+
+    public func fetchJournalRevisions(journalEntryID: UUID) throws -> [JournalRevisionEntity] {
+        let request = NSFetchRequest<JournalRevisionEntity>(entityName: "JournalRevisionEntity")
+        request.predicate = NSPredicate(format: "journalEntryID == %@", journalEntryID as CVarArg)
+        request.sortDescriptors = [NSSortDescriptor(key: "revisionNumber", ascending: true)]
+        return try context.fetch(request)
     }
 
     public func fetchHumanDecisions(journalEntryIDs: [UUID]) throws -> [HumanDecisionEntity] {

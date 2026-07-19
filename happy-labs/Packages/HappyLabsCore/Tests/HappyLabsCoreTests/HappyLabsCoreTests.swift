@@ -23,6 +23,17 @@ final class ProvenanceTests: XCTestCase {
 }
 
 final class MboxParserTests: XCTestCase {
+    /// An RFC 822 `Date:` header a few days before now, so scope tests that assert a
+    /// message falls inside `.lastMonth` stay true as the wall clock advances rather
+    /// than rotting the moment the fixture's fixed date leaves the rolling window.
+    private func recentDateHeader(daysAgo: Int = 3) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+        return formatter.string(from: Date().addingTimeInterval(TimeInterval(-daysAgo * 24 * 60 * 60)))
+    }
+
     func testParsesSimpleMbox() throws {
         let mbox = """
         From alice@example.com Mon Jun 16 12:00:00 2026
@@ -87,12 +98,12 @@ final class MboxParserTests: XCTestCase {
 
         Old body
 
-        From new@example.com Mon Jun 16 12:00:00 2026
+        From new@example.com
         From: new@example.com
         To: bob@example.com
         Subject: New
         Message-ID: <new@example.com>
-        Date: Mon, 16 Jun 2026 12:00:00 +0000
+        Date: \(recentDateHeader())
 
         New body
 
@@ -284,12 +295,12 @@ Content-Transfer-Encoding: quoted-printable
 
         Old body
 
-        From new@example.com Mon Jun 16 12:00:00 2026
+        From new@example.com
         From: new@example.com
         To: bob@example.com
         Subject: New
         Message-ID: <new@example.com>
-        Date: Mon, 16 Jun 2026 12:00:00 +0000
+        Date: \(recentDateHeader())
 
         New body
 
