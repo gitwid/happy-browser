@@ -35,7 +35,7 @@ struct ConnectomeView: View {
                 .foregroundStyle(JournalTheme.ink)
                 .padding(.top, 18)
 
-            Text("Every message you imported, traced to its root and gathered into the few that became stories.")
+            Text("Correspondence and Morningstar captures, traced through interpretations into the journal without losing their roots.")
                 .font(.system(size: 13.5))
                 .foregroundStyle(JournalTheme.muted)
                 .lineSpacing(4)
@@ -85,6 +85,16 @@ struct ConnectomeView: View {
                                 hoveredID = hovering ? node.id : (hoveredID == node.id ? nil : hoveredID)
                             }
                     }
+
+                    ForEach(graph.witnessBranches) { branch in
+                        let capturePoint = scaled(branch.capturePosition, scale: scale, offsetX: offsetX, offsetY: offsetY)
+                        Circle()
+                            .fill(Color.clear)
+                            .frame(width: 24 * scale, height: 24 * scale)
+                            .contentShape(Circle())
+                            .position(capturePoint)
+                            .onTapGesture { selectedID = branch.journalEntryID }
+                    }
                 }
             }
             .frame(height: 380)
@@ -121,6 +131,19 @@ private struct ConnectomeCanvas: View {
 
     var body: some View {
         Canvas { context, _ in
+            for branch in graph.witnessBranches {
+                var path = Path()
+                path.move(to: branch.capturePosition)
+                path.addLine(to: branch.interpretationPosition)
+                path.addLine(to: branch.journalPosition)
+                let faded = selectedID != nil && selectedID != branch.journalEntryID
+                context.stroke(
+                    path,
+                    with: .color(JournalTheme.accent.opacity(faded ? 0.18 : 0.55)),
+                    style: StrokeStyle(lineWidth: faded ? 0.5 : 0.9, dash: [2, 3])
+                )
+            }
+
             for node in graph.nodes {
                 guard let origin = graph.originPosition(for: node.originID) else { continue }
                 var edge = Path()
@@ -132,6 +155,23 @@ private struct ConnectomeCanvas: View {
                     with: .color(JournalTheme.divider.opacity(faded ? 0.35 : 0.7)),
                     lineWidth: faded ? 0.6 : 0.9
                 )
+            }
+
+            for branch in graph.witnessBranches {
+                let captureRect = CGRect(
+                    x: branch.capturePosition.x - 4,
+                    y: branch.capturePosition.y - 4,
+                    width: 8,
+                    height: 8
+                )
+                context.fill(Path(ellipseIn: captureRect), with: .color(JournalTheme.accent.opacity(0.85)))
+                let interpretationRect = CGRect(
+                    x: branch.interpretationPosition.x - 3,
+                    y: branch.interpretationPosition.y - 3,
+                    width: 6,
+                    height: 6
+                )
+                context.stroke(Path(interpretationRect), with: .color(JournalTheme.accent.opacity(0.8)), lineWidth: 1)
             }
 
             if let selectedID, let node = graph.nodes.first(where: { $0.id == selectedID }),

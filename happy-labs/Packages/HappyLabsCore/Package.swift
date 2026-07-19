@@ -13,7 +13,8 @@ let package = Package(
     targets: [
         .target(
             name: "HappyLabsCore",
-            resources: [.process("Resources")]
+            resources: [.process("Resources")],
+            linkerSettings: [.linkedLibrary("sqlite3")]
         ),
         .testTarget(
             name: "HappyLabsCoreTests",

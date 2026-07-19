@@ -6,6 +6,9 @@ Happy Labs is **independent** from [Happy Browser](../README.md). No shared code
 
 Research continuity: [docs/research-continuity.md](docs/research-continuity.md)
 
+Morningstar's native witness-layer integration is documented in
+[docs/morningstar-integration.md](docs/morningstar-integration.md).
+
 ## Invariants
 
 - Human = editor. Agent = instrument. Every retention path requires explicit human approval.

@@ -154,6 +154,21 @@ public enum HappyLabsModel {
             ]
         )
 
+        let journalRevision = makeEntity(
+            name: "JournalRevisionEntity",
+            provenance: true,
+            extra: [
+                attr("journalEntryID", .UUIDAttributeType),
+                attr("revisionNumber", .integer32AttributeType),
+                attr("title", .stringAttributeType),
+                attr("bodyMarkdown", .stringAttributeType),
+                attr("evidenceReferencesJSON", .stringAttributeType),
+                attr("createdAt", .dateAttributeType),
+                attr("authorRaw", .stringAttributeType, optional: true)
+            ],
+            indexes: [("byJournalRevision", ["journalEntryID", "revisionNumber"])]
+        )
+
         let discardedArtifact = makeEntity(
             name: "DiscardedArtifactEntity",
             provenance: true,
@@ -173,6 +188,7 @@ public enum HappyLabsModel {
             journalEntry,
             continuitySource,
             transformationLog,
+            journalRevision,
             humanDecision,
             discardedArtifact
         ]

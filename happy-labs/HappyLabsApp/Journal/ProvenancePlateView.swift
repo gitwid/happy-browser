@@ -132,6 +132,72 @@ struct ProvenancePlateView: View {
                 }
             }
 
+            if !detail.morningstarEvidence.isEmpty {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Text("MORNINGSTAR EVIDENCE")
+                            .font(JournalTheme.capsLabel(9.5))
+                            .tracking(2)
+                            .foregroundStyle(Color(red: 0.514, green: 0.522, blue: 0.557))
+                        Spacer()
+                        Text("WITNESS LAYER")
+                            .font(JournalTheme.capsLabel(9))
+                            .tracking(1.5)
+                            .foregroundStyle(Color(red: 0.514, green: 0.522, blue: 0.557))
+                    }
+
+                    ForEach(detail.morningstarEvidence) { evidence in
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text("CAPTURE \(String(format: "%03d", evidence.capture.sequenceNumber))")
+                                    .font(JournalTheme.mono(12.5))
+                                    .foregroundStyle(Color(red: 0.247, green: 0.251, blue: 0.275))
+                                Spacer()
+                                Text(evidence.verificationLabel)
+                                    .font(JournalTheme.capsLabel(9))
+                                    .tracking(1.5)
+                                    .foregroundStyle(evidence.verification?.verified == true ? JournalTheme.accent : JournalTheme.label)
+                            }
+
+                            evidenceChannel("OBSERVATION", evidence.capture.observation)
+                            evidenceChannel("PHENOMENOLOGY", evidence.capture.phenomenology)
+                            evidenceChannel("ACTION", evidence.capture.action)
+
+                            HStack(alignment: .top, spacing: 24) {
+                                evidenceDatum("PROTOCOL", "v\(evidence.capture.protocolVersion) / schema v\(evidence.capture.schemaVersion)")
+                                evidenceDatum("CAPTURE HASH", shortHash(evidence.capture.integrityHash))
+                                evidenceDatum("PREVIOUS HASH", shortHash(evidence.capture.previousHash))
+                            }
+
+                            if !evidence.annotations.isEmpty {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("ANNOTATIONS")
+                                        .font(JournalTheme.capsLabel(8.5))
+                                        .tracking(1.5)
+                                        .foregroundStyle(Color(red: 0.514, green: 0.522, blue: 0.557))
+                                    ForEach(evidence.annotations) { annotation in
+                                        Text("[\(annotation.kind.rawValue)] \(annotation.body)")
+                                            .font(.system(size: 11.5))
+                                            .foregroundStyle(Color(red: 0.353, green: 0.357, blue: 0.380))
+                                    }
+                                }
+                            }
+
+                            Text("Attached explicitly · \(evidence.attachment.attachedAt)")
+                                .font(JournalTheme.mono(9.5))
+                                .foregroundStyle(Color(red: 0.604, green: 0.612, blue: 0.643))
+                        }
+                        .padding(16)
+                        .background(Color.white.opacity(0.22))
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.black.opacity(0.10)))
+                    }
+                }
+                .padding(.top, 18)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.black.opacity(0.12)).frame(height: 1)
+                }
+            }
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("CONTENT FINGERPRINT — SHA-256")
                     .font(JournalTheme.capsLabel(9.5))
@@ -174,6 +240,35 @@ struct ProvenancePlateView: View {
                 .stroke(Color(red: 0.47, green: 0.478, blue: 0.51).opacity(0.5), lineWidth: 1)
         )
         .shadow(color: Color(red: 0.157, green: 0.165, blue: 0.188).opacity(0.25), radius: 18, y: 10)
+    }
+
+    private func evidenceChannel(_ title: String, _ body: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(JournalTheme.capsLabel(8.5))
+                .tracking(1.5)
+                .foregroundStyle(Color(red: 0.514, green: 0.522, blue: 0.557))
+            Text(body.isEmpty ? "—" : body)
+                .font(.system(size: 12))
+                .foregroundStyle(Color(red: 0.353, green: 0.357, blue: 0.380))
+                .textSelection(.enabled)
+        }
+    }
+
+    private func evidenceDatum(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(JournalTheme.capsLabel(8))
+                .tracking(1.3)
+                .foregroundStyle(Color(red: 0.514, green: 0.522, blue: 0.557))
+            Text(value)
+                .font(JournalTheme.mono(9.5))
+                .foregroundStyle(Color(red: 0.353, green: 0.357, blue: 0.380))
+        }
+    }
+
+    private func shortHash(_ hash: String) -> String {
+        hash.count > 14 ? "\(hash.prefix(7))…\(hash.suffix(7))" : hash
     }
 }
 

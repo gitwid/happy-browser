@@ -29,6 +29,7 @@ final class AppModel: ObservableObject {
     let reviewService: HumanReviewService
     let exportService: ExportService
     let coherenceService: CoherenceReportService
+    let morningstarStore: MorningstarStore?
 
     @Published var lastImportID: UUID?
     @Published var coherenceReport: CoherenceReport?
@@ -47,6 +48,8 @@ final class AppModel: ObservableObject {
     @Published var pendingImportURL: URL?
     @Published var selectedImportScope: ImportScope = .lastMonth
     @Published var mailboxPreview: MailboxPreview?
+    @Published var morningstarCaptures: [MorningstarCapture] = []
+    @Published var morningstarVerification: MorningstarVerificationReport?
 
     private var importTask: Task<Void, Never>?
     private var activeImportID: UUID?
@@ -58,6 +61,7 @@ final class AppModel: ObservableObject {
         exportService = ExportService(persistence: persistence)
         coherenceService = CoherenceReportService(persistence: persistence)
         dataResetService = DataResetService(persistence: persistence)
+        morningstarStore = try? MorningstarStore(url: MorningstarStore.defaultStoreURL())
         refresh()
     }
 
@@ -67,7 +71,71 @@ final class AppModel: ObservableObject {
         journalEntries = (try? repo.fetchJournalEntries()) ?? []
         contextSources = (try? repo.fetchContinuitySources(state: .captured)) ?? []
         transformationLogs = (try? repo.fetchTransformationLogs()) ?? []
+        refreshMorningstar()
         rebuildPresentation()
+    }
+
+    func refreshMorningstar() {
+        guard let morningstarStore else {
+            morningstarCaptures = []
+            morningstarVerification = nil
+            return
+        }
+        morningstarCaptures = (try? morningstarStore.captures()) ?? []
+        morningstarVerification = try? morningstarStore.verify()
+    }
+
+    @discardableResult
+    func commitMorningstarCapture(
+        _ input: MorningstarCaptureInput,
+        attachingTo journalEntryID: UUID?
+    ) throws -> MorningstarCapture {
+        guard let morningstarStore else {
+            throw MorningstarStoreError.database("the native evidence store could not be opened")
+        }
+        let capture = try morningstarStore.commitCapture(input)
+        if let journalEntryID {
+            guard journalEntries.contains(where: { $0.provenanceID == journalEntryID }) else {
+                throw MorningstarStoreError.journalEntryNotFound
+            }
+            _ = try morningstarStore.attach(captureID: capture.id, toJournalEntryID: journalEntryID)
+        }
+        refreshMorningstar()
+        statusMessage = journalEntryID == nil
+            ? "Committed Morningstar capture \(String(format: "%03d", capture.sequenceNumber))."
+            : "Committed and attached Morningstar capture \(String(format: "%03d", capture.sequenceNumber))."
+        return capture
+    }
+
+    func attachMorningstarCapture(_ captureID: UUID, to journalEntryID: UUID) throws {
+        guard let morningstarStore else {
+            throw MorningstarStoreError.database("the native evidence store could not be opened")
+        }
+        guard journalEntries.contains(where: { $0.provenanceID == journalEntryID }) else {
+            throw MorningstarStoreError.journalEntryNotFound
+        }
+        _ = try morningstarStore.attach(captureID: captureID, toJournalEntryID: journalEntryID)
+        refreshMorningstar()
+        statusMessage = "Attached Morningstar evidence to the journal entry."
+    }
+
+    func morningstarEvidence(for journalEntryID: UUID) -> [MorningstarEvidenceDetail] {
+        guard let morningstarStore,
+              let attachments = try? morningstarStore.attachments(journalEntryID: journalEntryID) else {
+            return []
+        }
+        let verificationByID = Dictionary(
+            uniqueKeysWithValues: (morningstarVerification?.captures ?? []).map { ($0.captureID, $0) }
+        )
+        return attachments.compactMap { attachment in
+            guard let capture = try? morningstarStore.capture(id: attachment.captureID) else { return nil }
+            return MorningstarEvidenceDetail(
+                capture: capture,
+                attachment: attachment,
+                annotations: (try? morningstarStore.annotations(captureID: capture.id)) ?? [],
+                verification: verificationByID[capture.id]
+            )
+        }
     }
 
     private func rebuildPresentation() {
@@ -247,11 +315,16 @@ final class AppModel: ObservableObject {
         isBusy = true
         defer { isBusy = false }
         do {
+            // Content-addressed: the reference is the capture's integrity hash, so a
+            // revision fingerprint transitively commits to capture content, not a row id.
+            let morningstarReferences = ((try? morningstarStore?.attachedCaptures(journalEntryID: entry.provenanceID)) ?? [])
+                .map { $0.capture.integrityHash }
             try reviewService.applyDecision(
                 journalEntryID: entry.provenanceID,
                 action: action,
                 editedTitle: title == entry.title ? nil : title,
-                editedBodyMarkdown: body == entry.bodyMarkdown ? nil : body
+                editedBodyMarkdown: body == entry.bodyMarkdown ? nil : body,
+                evidenceReferences: morningstarReferences
             )
             if let importID = lastImportID {
                 coherenceReport = try coherenceService.generate(mboxImportID: importID)
